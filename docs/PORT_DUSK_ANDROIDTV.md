@@ -16,8 +16,7 @@ Dispositivo de prueba: TV TCL con Android TV. Entorno: PC con Windows, solo edit
 | UI | Compose for TV (`androidx.tv:tv-material`), Navigation Compose |
 | Reproductor | libVLC para Android (`org.videolan.android:libvlc-all`): mismo motor que VLCKit, mismo comportamiento de códecs, pistas y subtítulos |
 | Red / Plex API | OkHttp + Retrofit + kotlinx.serialization (login con PIN de plex.tv, descubrimiento de servidores, conexiones locales/remotas/relay) |
-| Persistencia | Room (descargas, progreso), DataStore (ajustes) |
-| Descargas offline | WorkManager + OkHttp |
+| Persistencia | Room (progreso y caché), DataStore (ajustes) |
 | Imágenes | Coil |
 | DI | Hilt o Koin |
 | Build | Gradle (wrapper) compilado en GitHub Actions; sin Android Studio |
@@ -48,7 +47,7 @@ Dispositivo de prueba: TV TCL con Android TV. Entorno: PC con Windows, solo edit
 1. Esqueleto: proyecto, tema, navegación, login por PIN, selección de servidor y usuario (Plex Home).
 2. Bibliotecas, detalle, búsqueda, multi-servidor.
 3. Reproductor: Direct Play, transcodificación manual, pistas de audio/subtítulos, elegir versión, reanudar, saltar intro/créditos, "¿sigues viendo?".
-4. Descargas offline, Continuar viendo, Watch Next.
+4. Continuar viendo y Watch Next (la versión tvOS no tiene descargas; no se portan).
 5. Live TV, Seerr.
 6. Escalado con IA, Dolby Vision/TrueHD, Watch Together.
 7. Pulido de fidelidad: comparar pantalla por pantalla con capturas de tvOS y ajustar.
