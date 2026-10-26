@@ -76,13 +76,18 @@ fun DuskGlassButton(
     }
 }
 
-/** Botón de texto con foco en cápsula (p. ej. "Cancel" en el inicio de sesión). */
+/**
+ * Botón de texto con foco en cápsula. Sin `tint`, el texto pasa de secundario a primario al
+ * enfocar; con `tint` (p. ej. rojo para "Sign Out") mantiene ese color y rellena con la
+ * superficie al enfocar, como `HomeUserTextButton` del original.
+ */
 @Composable
 fun DuskTextButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
+    tint: Color? = null,
 ) {
     val tv = DuskTheme.tv
     val colors = DuskTheme.colors
@@ -90,13 +95,16 @@ fun DuskTextButton(
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "textFocusScale")
     val focusModifier = if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
 
+    val focusedBackground = if (tint != null) colors.surface else colors.textPrimary.copy(alpha = 0.14f)
+    val textColor = tint ?: if (focused) colors.textPrimary else colors.textSecondary
+
     Row(
         modifier = modifier
             .then(focusModifier)
             .onFocusChanged { focused = it.isFocused }
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(CircleShape)
-            .background(if (focused) colors.textPrimary.copy(alpha = 0.14f) else Color.Transparent)
+            .background(if (focused) focusedBackground else Color.Transparent)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -105,11 +113,6 @@ fun DuskTextButton(
             .padding(horizontal = tv.dp(32), vertical = tv.dp(14)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BasicText(
-            text = text,
-            style = DuskTheme.type.buttonLabel.copy(
-                color = if (focused) colors.textPrimary else colors.textSecondary,
-            ),
-        )
+        BasicText(text = text, style = DuskTheme.type.buttonLabel.copy(color = textColor))
     }
 }
