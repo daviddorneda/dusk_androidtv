@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -55,8 +56,13 @@ fun DuskTabBar(
     onMoveDown: (() -> Boolean)? = null,
 ) {
     val tv = DuskTheme.tv
+    // Mientras el foco está fuera de la barra, solo la pestaña activa puede recibirlo: al subir desde
+    // cualquier pantalla se llega SIEMPRE a la pestaña actual (y no a la más cercana, que cambiaría
+    // de pestaña). Una vez dentro, todas son enfocables para moverse entre ellas.
+    var barHasFocus by remember { mutableStateOf(false) }
     Row(
         modifier = modifier
+            .onFocusChanged { barHasFocus = it.hasFocus }
             .clip(CircleShape)
             .background(Color(0xFF14161E).copy(alpha = 0.78f))
             .border(tv.dp(1), Color.White.copy(alpha = 0.08f), CircleShape)
@@ -71,6 +77,7 @@ fun DuskTabBar(
                 onSelect = { onSelect(tab) },
                 focusRequester = if (tab == selected) selectedFocus else null,
                 onMoveDown = onMoveDown,
+                canReceiveFocus = barHasFocus || tab == selected,
             )
         }
     }
@@ -83,6 +90,7 @@ private fun TabBarItem(
     onSelect: () -> Unit,
     focusRequester: FocusRequester?,
     onMoveDown: (() -> Boolean)?,
+    canReceiveFocus: Boolean,
 ) {
     val tv = DuskTheme.tv
     var focused by remember { mutableStateOf(false) }
@@ -103,6 +111,7 @@ private fun TabBarItem(
 
     Row(
         modifier = Modifier
+            .focusProperties { canFocus = canReceiveFocus }
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onPreviewKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {

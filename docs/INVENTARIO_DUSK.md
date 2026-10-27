@@ -33,16 +33,43 @@ Cifras medidas sobre `Dusk/Sources`: **294 archivos Swift, ~89.500 líneas**.
 5. **Reproductor híbrido:** AVPlayer para MP4/MOV y VLCKit para el resto, con remux HLS para Atmos/HDR y conversión Dolby Vision 7 → 8.1 mediante un crate de Rust. En Android no hay AVPlayer: se parte de libVLC para todo y se evalúa Media3 más adelante. La conversión Dolby Vision y el build propio de TrueHD (repo privado del autor) no se portan al principio.
 6. **Servidores múltiples:** Home y búsqueda fusionan todos los servidores a la vez (`HubMerge`, `ContinueWatchingMerge`, `SearchMerge`). Hay que diseñarlo desde el principio, no añadirlo luego.
 
-## Orden recomendado
+## Fases y registro de tandas
+
+Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entrega (zip) que se sube al repo. Una fase puede necesitar varias tandas: la primera la construye y las siguientes corrigen lo que sale al probarla en la TV. Una fase se da por cerrada cuando se ha validado en la TCL.
 
 | Fase | Contenido | Estado |
 |---|---|---|
-| 1 | Tema (colores, tipografía, escala tvOS) y login con PIN de plex.tv/link | Hecha (tanda 1) |
-| 2 | Recursos de plex.tv, descubrimiento y sondeo de servidores, selector de perfil de Plex Home | Hecha (tanda 2) |
-| 3 | Shell de pestañas (Home, Movies, TV Shows, Search, Settings) y Home con héroe y hubs | **Tanda 3 (esta entrega)** |
+| 1 | Tema (colores, tipografía, escala tvOS) y login con PIN de plex.tv/link | Cerrada |
+| 2 | Recursos de plex.tv, descubrimiento y sondeo de servidores, selector de perfil de Plex Home | Cerrada |
+| 3 | Shell de pestañas (Home, Movies, TV Shows, Search, Settings) y Home con héroe y filas | **En curso** (tandas 3, 4 y 5; falta validar la 5) |
 | 4 | Bibliotecas, detalle de película/serie/episodio, búsqueda | Pendiente |
 | 5 | Reproductor: reproducción directa, pistas, reanudar, timeline, saltar intro/créditos, Up Next | Pendiente |
-| 6 | Ajustes, Live TV, Playlists, Fotos, Seerr, Watchlist, Watch Next | Pendiente |
+| 6 | Ajustes completos, Live TV, Playlists, Fotos, Seerr, Watchlist, Watch Next | Pendiente |
+
+| Tanda | Fase | Qué trajo |
+|---|---|---|
+| 1 | 1 | Esqueleto del proyecto, tema y login con PIN |
+| 2 | 2 | Servidores de Plex y selector de perfil de Plex Home con PIN |
+| 3 | 3 | Shell de pestañas y Home (héroe y filas), primera versión |
+| 4 | 3 (correcciones) | Tema oscuro por defecto, interruptor, navegación vertical, informe de carga por servidor en Settings |
+| 5 | 3 (correcciones) | Foco de pósters tipo `.card` de tvOS, desplazamiento suave sin saltos, "More" como pista, subir a la barra de pestañas, barra que vuelve a la pestaña activa, Ajustes con la estructura del original |
+
+## Decisiones de fidelidad (qué hace el original y cómo se replica)
+
+- **Apariencia:** oscura por defecto en tvOS (el autor lo deja escrito: el modo claro no gusta en esta app). Se replica; el ajuste Light/Dark/System existe por dentro y su botón llegará con los Ajustes.
+- **Foco de los pósters:** el original usa el estilo de botón `.card` nativo de tvOS (elevación, sombra suave y brillo). Se aproxima con escala ~1.1×, sombra y brillo (`DUSK_CARD_FOCUS_SCALE` en `Focus.kt`).
+- **Foco en filas propias** (selector de usuarios, teclado del PIN): escala 1.05 y resplandor blanco, como `duskTVOSFocusedScale`.
+- **Filas de Ajustes:** banda de foco redondeada (18 pt) al 20 % del color de texto, dentro de tarjetas de 28 pt.
+- **"More ⌄" del héroe:** solo una pista visual, no se puede enfocar. Aparece mientras el botón de reproducir tiene el foco y la flecha rebota.
+- **Héroe:** izquierda/derecha cambia de elemento; abajo lleva a la primera tarjeta de la primera fila con la página fijada en el "pliegue" (hueco de 84 pt); arriba lleva a la barra de pestañas.
+- **Barra de pestañas:** píldora flotante; el contenido cambia al mover el foco entre pestañas; al subir desde el contenido se llega siempre a la pestaña activa.
+- **Ajustes:** estructura del original (título, secciones en tarjetas, "Account" con Sign Out en rojo). "Servers" es un añadido provisional de diagnóstico.
+
+## Pendientes conocidos de fidelidad
+- Efecto Liquid Glass y paralaje de los pósters: solo aproximados.
+- Tipografía: fuente del sistema en lugar de SF Pro (valorar Inter).
+- Ajustes: faltan las secciones Support, Playback, Appearance, Seerr y About.
+- Home: faltan Live TV, Watchlist y estantes personalizados; orden de filas por biblioteca.
 
 ## Archivos de referencia en el original
 - Estilo: `STYLE.md` y `Dusk/Sources/Shared/DuskTypography.swift`

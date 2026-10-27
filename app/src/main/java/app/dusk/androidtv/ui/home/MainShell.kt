@@ -70,7 +70,10 @@ fun MainShell(
     val firstShelfFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val scrolledOffTop by remember {
-        derivedStateOf { homeListState.firstVisibleItemIndex > 0 || homeListState.firstVisibleItemScrollOffset > 0 }
+        derivedStateOf {
+            homeListState.firstVisibleItemIndex > 0 ||
+                homeListState.firstVisibleItemScrollOffset > homeListState.layoutInfo.viewportSize.height / 2
+        }
     }
     val barVisible = selected != MainTab.Home || !scrolledOffTop
 
@@ -121,16 +124,14 @@ fun MainShell(
                     )
                 }
                 MainTab.Search -> ComingSoonScreen(title = "Search", note = "Search arrives in a later update.")
-                MainTab.Settings -> Box(Modifier.padding(top = tv.dp(110))) {
-                    ServersScreen(
-                        activeUser = activeUser,
-                        hasPlexHome = hasPlexHome,
-                        servers = DuskGraph.servers,
-                        accountToken = accountToken,
-                        onSwitchUser = onSwitchUser,
-                        onSignOut = onSignOut,
-                    )
-                }
+                MainTab.Settings -> SettingsScreen(
+                    activeUser = activeUser,
+                    hasPlexHome = hasPlexHome,
+                    servers = DuskGraph.servers,
+                    accountToken = accountToken,
+                    onSwitchUser = onSwitchUser,
+                    onSignOut = onSignOut,
+                )
             }
         }
 

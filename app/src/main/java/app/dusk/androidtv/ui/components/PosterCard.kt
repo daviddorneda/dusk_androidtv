@@ -1,5 +1,7 @@
 package app.dusk.androidtv.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,6 +57,7 @@ fun PosterCard(
     imageAspectRatio: Float = 2f / 3f,
     focusRequester: FocusRequester? = null,
     keyModifier: Modifier = Modifier,
+    onFocused: (() -> Unit)? = null,
 ) {
     val tv = DuskTheme.tv
     val colors = DuskTheme.colors
@@ -71,8 +75,11 @@ fun PosterCard(
                 .size(width = width, height = width / imageAspectRatio)
                 .then(focusModifier)
                 .then(keyModifier)
-                .duskTvFocusEffect(focused, shape)
-                .onFocusChanged { focused = it.isFocused }
+                .duskTvCardFocusEffect(focused, shape)
+                .onFocusChanged {
+                    focused = it.isFocused
+                    if (it.isFocused) onFocused?.invoke()
+                }
                 .clip(shape)
                 .background(colors.surface)
                 .clickable(
@@ -89,6 +96,23 @@ fun PosterCard(
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
+                )
+            }
+            val sheen by animateFloatAsState(
+                targetValue = if (focused) 1f else 0f,
+                animationSpec = tween(220),
+                label = "posterSheen",
+            )
+            if (sheen > 0f) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                0f to Color.White.copy(alpha = 0.18f * sheen),
+                                0.45f to Color.Transparent,
+                            ),
+                        ),
                 )
             }
             if (progress != null && progress > 0) {

@@ -44,13 +44,14 @@ Dispositivo de prueba: TV TCL con Android TV. Entorno: PC con Windows, solo edit
 - Como no hay emulador ni depurador, cada fase es pequeña y se prueba en el TV; usar logs (`adb logcat`) y pantallas de diagnóstico en modo debug.
 
 ## 4. Fases
-1. Esqueleto: proyecto, tema, navegación, login por PIN, selección de servidor y usuario (Plex Home).
-2. Bibliotecas, detalle, búsqueda, multi-servidor.
-3. Reproductor: Direct Play, transcodificación manual, pistas de audio/subtítulos, elegir versión, reanudar, saltar intro/créditos, "¿sigues viendo?".
-4. Continuar viendo y Watch Next (la versión tvOS no tiene descargas; no se portan).
-5. Live TV, Seerr.
-6. Escalado con IA, Dolby Vision/TrueHD, Watch Together.
-7. Pulido de fidelidad: comparar pantalla por pantalla con capturas de tvOS y ajustar.
+El detalle (fases, tandas entregadas y decisiones de fidelidad) está en `docs/INVENTARIO_DUSK.md`. Resumen:
+
+1. Tema y login con PIN.
+2. Servidores de Plex y selector de perfil de Plex Home.
+3. Shell de pestañas y Home (héroe y filas).
+4. Bibliotecas, detalle de película/serie/episodio y búsqueda.
+5. Reproductor (la versión tvOS no tiene descargas; no se portan).
+6. Ajustes completos, Live TV, Playlists, Fotos, Seerr, Watchlist y Watch Next.
 
 ## 5. Método de fidelidad
 - Una pantalla SwiftUI = una pantalla Compose, con el mismo árbol de componentes cuando se pueda.

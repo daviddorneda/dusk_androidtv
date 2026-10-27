@@ -1,9 +1,19 @@
 package app.dusk.androidtv.ui.home
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,25 +22,27 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +50,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -48,7 +61,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dusk.androidtv.DuskGraph
@@ -58,21 +70,62 @@ import app.dusk.androidtv.data.plex.PlexImages
 import app.dusk.androidtv.data.plex.PlexItem
 import app.dusk.androidtv.data.plex.PlexMediaType
 import app.dusk.androidtv.ui.components.DuskGlassButton
+import app.dusk.androidtv.ui.components.DuskIcon
 import app.dusk.androidtv.ui.components.DuskSpinner
+import app.dusk.androidtv.ui.components.NoAutoScrollSpec
 import app.dusk.androidtv.ui.components.PosterCard
+import app.dusk.androidtv.ui.components.RowBringIntoViewSpec
 import app.dusk.androidtv.ui.theme.DuskTheme
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
 
 private const val HERO_ROTATION_MS = 8_000L
+private const val POSTER_WIDTH_PT = 232
+private const val POSTER_HEIGHT_PT = 348
+private const val SHELF_TOP_MARGIN_PT = 84
+private const val SHELF_BOTTOM_MARGIN_PT = 40
+
+private fun FocusRequester.tryFocus(): Boolean = try {
+    requestFocus()
+    true
+} catch (e: IllegalStateException) {
+    false
+}
+
+/**
+ * Lleva la fila (`itemIndex`) a la vista con el desplazamiento mínimo y una animación suave:
+ * deja `topMargin` libre por arriba (el hueco del primer estante) y `bottomMargin` por abajo.
+ * Desde el héroe esto sube la página justo hasta el "pliegue", como en el original.
+ */
+private suspend fun revealShelf(state: LazyListState, itemIndex: Int, topMargin: Float, bottomMargin: Float) {
+    val info = state.layoutInfo
+    val item = info.visibleItemsInfo.firstOrNull { it.index == itemIndex }
+    if (item == null) {
+        state.animateScrollToItem(itemIndex)
+        return
+    }
+    val viewportStart = info.viewportStartOffset.toFloat()
+    val viewportEnd = info.viewportEndOffset.toFloat()
+    val top = item.offset.toFloat()
+    val bottom = top + item.size
+    val distance = when {
+        top < viewportStart + topMargin -> top - (viewportStart + topMargin)
+        bottom > viewportEnd - bottomMargin ->
+            minOf(bottom - (viewportEnd - bottomMargin), top - (viewportStart + topMargin))
+        else -> 0f
+    }
+    if (distance != 0f) state.animateScrollBy(distance, tween(350, easing = FastOutSlowInEasing))
+}
 
 /**
  * Home de tvOS (`HomeTVView`): héroe cinemático a pantalla completa con lo que estás viendo
  * y, debajo, las filas de pósters. Todos los servidores conectados se muestran fusionados.
  * TODO: Live TV, Watchlist, estantes personalizados y navegación al detalle (fase 4).
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     listState: LazyListState,
@@ -83,58 +136,77 @@ fun HomeScreen(
     onOpen: (PlexItem) -> Unit,
 ) {
     val tv = DuskTheme.tv
-    val focusManager = LocalFocusManager.current
-    val scope = rememberCoroutineScope()
     val colors = DuskTheme.colors
     val type = DuskTheme.type
     val content by DuskGraph.content.home.collectAsStateWithLifecycle()
     val connections by DuskGraph.content.connections.collectAsStateWithLifecycle()
-    val density = LocalDensity.current.density
+    val density = LocalDensity.current
+    val focusManager = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
 
     // Las medidas del diseño están en puntos de tvOS; la imagen se pide en píxeles reales.
     val imageUrl: (PlexItem, String?, Int, Int) -> String? = { item, path, widthPt, heightPt ->
         PlexImages.url(
             connection = connections[item.serverId],
             path = path,
-            width = ceil(widthPt * tv.scale * density).toInt(),
-            height = ceil(heightPt * tv.scale * density).toInt(),
+            width = ceil(widthPt * tv.scale * density.density).toInt(),
+            height = ceil(heightPt * tv.scale * density.density).toInt(),
         )
     }
 
-    // Navegación vertical explícita. El foco por defecto de Compose no llega a una fila que aún no
-    // está compuesta (LazyColumn compone solo lo visible): si no se mueve, se lleva la fila vecina a
-    // la vista y se vuelve a intentar. Arriba desde la primera fila va al héroe o a la barra de pestañas.
-    val hasHeroNow = content.heroItems.isNotEmpty()
-    val firstShelfItemIndex = if (hasHeroNow) 2 else 1
+    val hasHero = content.heroItems.isNotEmpty()
+    val firstShelfItemIndex = if (hasHero) 2 else 1
+    val topMarginPx = with(density) { tv.dp(SHELF_TOP_MARGIN_PT).toPx() }
+    val bottomMarginPx = with(density) { tv.dp(SHELF_BOTTOM_MARGIN_PT).toPx() }
+    var focusedShelf by remember { mutableIntStateOf(-1) }
+
+    // El desplazamiento vertical lo decide la fila enfocada (no el foco de Compose): una sola
+    // animación suave por cambio de fila y nada al mover el foco de lado dentro de la misma fila.
+    LaunchedEffect(focusedShelf, firstShelfItemIndex) {
+        if (focusedShelf < 0) return@LaunchedEffect
+        snapshotFlow { listState.isScrollInProgress }.first { !it }
+        revealShelf(listState, firstShelfItemIndex + focusedShelf, topMarginPx, bottomMarginPx)
+    }
+
+    // Arriba/abajo entre filas. Si la fila vecina aún no está compuesta (LazyColumn solo compone lo
+    // visible) se avanza un poco y se reintenta.
     val moveVertically: (FocusDirection, Int) -> Unit = { direction, shelfIndex ->
         scope.launch {
-            if (focusManager.moveFocus(direction)) return@launch
+            val step = listState.layoutInfo.viewportSize.height * 0.35f
             if (direction == FocusDirection.Down) {
-                if (shelfIndex + 1 < content.shelves.size) {
-                    listState.animateScrollToItem(firstShelfItemIndex + shelfIndex + 1)
+                if (!focusManager.moveFocus(FocusDirection.Down) && shelfIndex + 1 < content.shelves.size) {
+                    listState.animateScrollBy(step, tween(250, easing = FastOutSlowInEasing))
                     focusManager.moveFocus(FocusDirection.Down)
                 }
-            } else if (shelfIndex == 0) {
-                if (hasHeroNow) {
-                    listState.animateScrollToItem(0)
-                    delay(80)
-                    runCatching { heroFocus.requestFocus() }
-                } else {
-                    runCatching { tabBarFocus.requestFocus() }
+            } else if (shelfIndex > 0) {
+                if (!focusManager.moveFocus(FocusDirection.Up)) {
+                    listState.animateScrollBy(-step, tween(250, easing = FastOutSlowInEasing))
+                    focusManager.moveFocus(FocusDirection.Up)
                 }
+            } else if (hasHero) {
+                val scroll = launch { listState.animateScrollToItem(0) }
+                for (attempt in 0 until 25) {
+                    if (heroFocus.tryFocus()) break
+                    delay(30)
+                }
+                scroll.join()
             } else {
-                listState.animateScrollToItem(firstShelfItemIndex + shelfIndex - 1)
-                focusManager.moveFocus(FocusDirection.Up)
+                tabBarFocus.tryFocus()
             }
         }
     }
+
+    // Abajo desde el héroe: la página sube hasta el pliegue y el foco cae en la primera tarjeta.
     val moveFromHero: () -> Unit = {
         scope.launch {
-            if (content.shelves.isNotEmpty()) {
-                listState.animateScrollToItem(firstShelfItemIndex)
-                delay(80)
-                runCatching { firstShelfFocus.requestFocus() }
+            if (content.shelves.isEmpty()) return@launch
+            val viewportHeight = listState.layoutInfo.viewportSize.height.toFloat()
+            val scroll = launch { listState.animateScrollBy(viewportHeight, tween(350, easing = FastOutSlowInEasing)) }
+            for (attempt in 0 until 25) {
+                if (firstShelfFocus.tryFocus()) break
+                delay(30)
             }
+            scroll.join()
         }
     }
 
@@ -150,8 +222,10 @@ fun HomeScreen(
                     modifier = Modifier.widthIn(max = tv.dp(720)),
                 )
             }
-            else -> {
-                val hasHero = content.heroItems.isNotEmpty()
+            else -> CompositionLocalProvider(
+                LocalBringIntoViewSpec provides NoAutoScrollSpec,
+                LocalOverscrollConfiguration provides null,
+            ) {
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     if (hasHero) {
                         item(key = "hero") {
@@ -161,13 +235,14 @@ fun HomeScreen(
                                 heroFocus = heroFocus,
                                 tabBarFocus = tabBarFocus,
                                 onMoveDown = moveFromHero,
+                                onPlayFocusChange = { if (it) focusedShelf = -1 },
                                 hasMore = content.shelves.isNotEmpty(),
                                 onPlay = onPlay,
                                 modifier = Modifier.fillParentMaxSize(),
                             )
                         }
                     }
-                    item(key = "top-gap") { Spacer(Modifier.height(tv.dp(if (hasHero) 84 else 170))) }
+                    item(key = "top-gap") { Spacer(Modifier.height(tv.dp(if (hasHero) SHELF_TOP_MARGIN_PT else 170))) }
                     itemsIndexed(content.shelves, key = { index, shelf -> "$index|${shelf.id}" }) { index, shelf ->
                         HomeShelfRow(
                             shelf = shelf,
@@ -175,6 +250,7 @@ fun HomeScreen(
                             imageUrl = imageUrl,
                             firstCardFocus = if (index == 0) firstShelfFocus else null,
                             onVertical = moveVertically,
+                            onCardFocused = { focusedShelf = index },
                             onOpen = onOpen,
                         )
                         Spacer(Modifier.height(tv.dp(36)))
@@ -186,6 +262,7 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HomeShelfRow(
     shelf: HomeShelf,
@@ -193,6 +270,7 @@ private fun HomeShelfRow(
     imageUrl: (PlexItem, String?, Int, Int) -> String?,
     firstCardFocus: FocusRequester?,
     onVertical: (FocusDirection, Int) -> Unit,
+    onCardFocused: () -> Unit,
     onOpen: (PlexItem) -> Unit,
 ) {
     val tv = DuskTheme.tv
@@ -202,36 +280,37 @@ private fun HomeShelfRow(
             style = DuskTheme.type.sectionHeader,
             modifier = Modifier.padding(horizontal = tv.dp(52)),
         )
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = tv.dp(52), vertical = tv.dp(20)),
-            horizontalArrangement = Arrangement.spacedBy(tv.dp(34)),
-        ) {
-            itemsIndexed(shelf.items, key = { _, item -> item.storageKey }) { cardIndex, item ->
-                PosterCard(
-                    imageUrl = imageUrl(item, item.posterPath, POSTER_WIDTH_PT, POSTER_HEIGHT_PT),
-                    title = item.posterCardTitle,
-                    subtitle = item.standardPosterSubtitle,
-                    progress = item.posterProgress,
-                    isWatched = item.posterIsWatched,
-                    width = tv.dp(POSTER_WIDTH_PT),
-                    onClick = { onOpen(item) },
-                    focusRequester = if (cardIndex == 0) firstCardFocus else null,
-                    keyModifier = Modifier.onPreviewKeyEvent { event ->
-                        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                        when (event.key) {
-                            Key.DirectionDown -> { onVertical(FocusDirection.Down, shelfIndex); true }
-                            Key.DirectionUp -> { onVertical(FocusDirection.Up, shelfIndex); true }
-                            else -> false
-                        }
-                    },
-                )
+        CompositionLocalProvider(LocalBringIntoViewSpec provides RowBringIntoViewSpec) {
+            LazyRow(
+                // Margen vertical para que el póster elevado y su sombra no queden recortados.
+                contentPadding = PaddingValues(horizontal = tv.dp(52), vertical = tv.dp(28)),
+                horizontalArrangement = Arrangement.spacedBy(tv.dp(34)),
+            ) {
+                itemsIndexed(shelf.items, key = { _, item -> item.storageKey }) { cardIndex, item ->
+                    PosterCard(
+                        imageUrl = imageUrl(item, item.posterPath, POSTER_WIDTH_PT, POSTER_HEIGHT_PT),
+                        title = item.posterCardTitle,
+                        subtitle = item.standardPosterSubtitle,
+                        progress = item.posterProgress,
+                        isWatched = item.posterIsWatched,
+                        width = tv.dp(POSTER_WIDTH_PT),
+                        onClick = { onOpen(item) },
+                        focusRequester = if (cardIndex == 0) firstCardFocus else null,
+                        onFocused = onCardFocused,
+                        keyModifier = Modifier.onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                            when (event.key) {
+                                Key.DirectionDown -> { onVertical(FocusDirection.Down, shelfIndex); true }
+                                Key.DirectionUp -> { onVertical(FocusDirection.Up, shelfIndex); true }
+                                else -> false
+                            }
+                        },
+                    )
+                }
             }
         }
     }
 }
-
-private const val POSTER_WIDTH_PT = 232
-private const val POSTER_HEIGHT_PT = 348
 
 // ---------------------------------------------------------------- Héroe
 
@@ -242,6 +321,7 @@ private fun HomeHero(
     heroFocus: FocusRequester,
     tabBarFocus: FocusRequester,
     onMoveDown: () -> Unit,
+    onPlayFocusChange: (Boolean) -> Unit,
     hasMore: Boolean,
     onPlay: (PlexItem) -> Unit,
     modifier: Modifier = Modifier,
@@ -311,14 +391,17 @@ private fun HomeHero(
                     iconRes = R.drawable.ic_play,
                     onClick = { onPlay(item) },
                     focusRequester = heroFocus,
-                    onFocusChange = { playFocused = it },
+                    onFocusChange = {
+                        playFocused = it
+                        onPlayFocusChange(it)
+                    },
                     modifier = Modifier.onPreviewKeyEvent { event ->
                         if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                         when (event.key) {
                             Key.DirectionLeft -> if (safePage > 0) { page = safePage - 1; true } else false
                             Key.DirectionRight -> if (safePage < items.lastIndex) { page = safePage + 1; true } else false
-                            // Arriba va a la pestaña activa, no a la más cercana (que cambiaría de pestaña).
-                            Key.DirectionUp -> runCatching { tabBarFocus.requestFocus() }.isSuccess
+                            // Arriba va a la barra de pestañas (a la pestaña activa).
+                            Key.DirectionUp -> tabBarFocus.tryFocus()
                             Key.DirectionDown -> { onMoveDown(); true }
                             else -> false
                         }
@@ -340,14 +423,50 @@ private fun HomeHero(
         }
 
         if (hasMore) {
-            BasicText(
-                text = "More",
-                style = DuskTheme.type.caption.copy(color = Color.White.copy(alpha = 0.7f)),
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = tv.dp(66)),
+            HeroMoreHint(
+                visible = playFocused,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = tv.dp(60)),
             )
         }
     }
 }
+
+/**
+ * "More ⌄" (`HomeTVView`): solo una pista, NO se puede enfocar. Aparece mientras el botón de
+ * reproducir tiene el foco y la flecha rebota despacio para invitar a bajar a las filas.
+ */
+@Composable
+private fun HeroMoreHint(visible: Boolean, modifier: Modifier = Modifier) {
+    val tv = DuskTheme.tv
+    val alpha by animateFloatAsState(if (visible) 1f else 0f, tween(250), label = "moreHintAlpha")
+    val transition = rememberInfiniteTransition(label = "moreHintBounce")
+    val bounce by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 6f,
+        animationSpec = infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "moreHintOffset",
+    )
+    if (alpha <= 0f) return
+    Column(
+        modifier = modifier.graphicsAlpha(alpha),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        BasicText(
+            text = "More",
+            style = DuskTheme.type.badge.copy(color = Color.White.copy(alpha = 0.92f)),
+        )
+        DuskIcon(
+            R.drawable.ic_expand_more,
+            tv.dp(32),
+            Color.White.copy(alpha = 0.92f),
+            modifier = Modifier.offset(y = tv.dp(bounce)),
+        )
+    }
+}
+
+private fun Modifier.graphicsAlpha(alpha: Float): Modifier = this.then(
+    Modifier.graphicsLayer { this.alpha = alpha },
+)
 
 @Composable
 private fun HeroPagerPill(active: Boolean) {
