@@ -2,6 +2,7 @@ package app.dusk.androidtv
 
 import android.content.Context
 import app.dusk.androidtv.data.plex.ContentRepository
+import app.dusk.androidtv.data.prefs.UserPreferences
 import app.dusk.androidtv.data.plex.HomeSessionManager
 import app.dusk.androidtv.data.plex.PlexClient
 import app.dusk.androidtv.data.plex.ServerApi
@@ -15,6 +16,8 @@ import kotlinx.coroutines.SupervisorJob
 object DuskGraph {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    lateinit var preferences: UserPreferences
+        private set
     lateinit var session: SessionStore
         private set
     lateinit var plex: PlexClient
@@ -29,6 +32,7 @@ object DuskGraph {
     fun init(context: Context) {
         if (::session.isInitialized) return
         val app = context.applicationContext
+        preferences = UserPreferences(app)
         session = SessionStore(app)
         val version = runCatching {
             app.packageManager.getPackageInfo(app.packageName, 0).versionName

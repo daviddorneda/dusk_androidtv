@@ -17,12 +17,13 @@ import app.dusk.androidtv.ui.theme.DuskTheme
 @Composable
 fun DuskSwitch(checked: Boolean, modifier: Modifier = Modifier) {
     val tv = DuskTheme.tv
+    val colors = DuskTheme.colors
     val thumbX by animateDpAsState(if (checked) tv.dp(38) else tv.dp(4), label = "switchThumb")
     Box(
         modifier = modifier
             .size(width = tv.dp(82), height = tv.dp(48))
             .clip(CircleShape)
-            .background(if (checked) Color(0xFF30D158) else Color.White.copy(alpha = 0.24f)),
+            .background(if (checked) Color(0xFF30D158) else colors.textSecondary.copy(alpha = 0.35f)),
     ) {
         Box(
             Modifier

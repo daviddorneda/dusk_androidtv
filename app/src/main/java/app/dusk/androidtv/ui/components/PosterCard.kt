@@ -53,6 +53,7 @@ fun PosterCard(
     modifier: Modifier = Modifier,
     imageAspectRatio: Float = 2f / 3f,
     focusRequester: FocusRequester? = null,
+    keyModifier: Modifier = Modifier,
 ) {
     val tv = DuskTheme.tv
     val colors = DuskTheme.colors
@@ -69,6 +70,7 @@ fun PosterCard(
             modifier = Modifier
                 .size(width = width, height = width / imageAspectRatio)
                 .then(focusModifier)
+                .then(keyModifier)
                 .duskTvFocusEffect(focused, shape)
                 .onFocusChanged { focused = it.isFocused }
                 .clip(shape)

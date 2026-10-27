@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.dusk.androidtv.DuskGraph
 import app.dusk.androidtv.data.plex.PlexHomeUser
 import app.dusk.androidtv.data.plex.ServerEntry
 import app.dusk.androidtv.data.plex.ServerManager
@@ -48,6 +49,8 @@ fun ServersScreen(
     val entries by servers.entries.collectAsStateWithLifecycle()
     val discovering by servers.isDiscovering.collectAsStateWithLifecycle()
     val error by servers.error.collectAsStateWithLifecycle()
+    val reports by DuskGraph.content.reports.collectAsStateWithLifecycle()
+    val homeContent by DuskGraph.content.home.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -80,6 +83,26 @@ fun ServersScreen(
                     style = type.pageSubtitle.copy(textAlign = TextAlign.Center),
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+        }
+
+        if (reports.isNotEmpty()) {
+            Column(
+                modifier = Modifier.widthIn(max = tv.dp(1120)).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(tv.dp(6)),
+            ) {
+                BasicText(
+                    text = "Home: ${homeContent.heroItems.size} in the hero, ${homeContent.shelves.size} rows",
+                    style = type.groupHeader,
+                )
+                reports.forEach { report ->
+                    val summary = report.error
+                        ?: "${report.hubRows ?: "?"} rows · ${report.continueWatching ?: "?"} in Continue Watching · ${report.libraries ?: "?"} libraries"
+                    BasicText(
+                        text = "${report.serverName}: $summary",
+                        style = type.caption.copy(color = if (report.error != null) colors.error else colors.textSecondary),
+                    )
+                }
             }
         }
 

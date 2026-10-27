@@ -1,6 +1,8 @@
 package app.dusk.androidtv.ui.home
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -65,6 +67,7 @@ fun MainShell(
     val homeListState = rememberLazyListState()
     val heroFocus = remember { FocusRequester() }
     val tabBarFocus = remember { FocusRequester() }
+    val firstShelfFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val scrolledOffTop by remember {
         derivedStateOf { homeListState.firstVisibleItemIndex > 0 || homeListState.firstVisibleItemScrollOffset > 0 }
@@ -95,36 +98,39 @@ fun MainShell(
     }
 
     Box(Modifier.fillMaxSize().background(DuskTheme.colors.background)) {
-        when (selected) {
-            MainTab.Home -> HomeScreen(
-                listState = homeListState,
-                heroFocus = heroFocus,
-                tabBarFocus = tabBarFocus,
-                onPlay = { /* Reproductor: fase 5 */ },
-                onOpen = { /* Detalle: fase 4 */ },
-            )
-            MainTab.Movies, MainTab.TvShows, MainTab.Videos -> {
-                val kind = when (selected) {
-                    MainTab.Movies -> LibraryKind.Movie
-                    MainTab.TvShows -> LibraryKind.Show
-                    else -> LibraryKind.Video
+        Crossfade(targetState = selected, animationSpec = tween(260), label = "tabContent") { tab ->
+            when (tab) {
+                MainTab.Home -> HomeScreen(
+                    listState = homeListState,
+                    heroFocus = heroFocus,
+                    tabBarFocus = tabBarFocus,
+                    firstShelfFocus = firstShelfFocus,
+                    onPlay = { /* Reproductor: fase 5 */ },
+                    onOpen = { /* Detalle: fase 4 */ },
+                )
+                MainTab.Movies, MainTab.TvShows, MainTab.Videos -> {
+                    val kind = when (tab) {
+                        MainTab.Movies -> LibraryKind.Movie
+                        MainTab.TvShows -> LibraryKind.Show
+                        else -> LibraryKind.Video
+                    }
+                    val count = libraries.count { it.kind == kind }
+                    ComingSoonScreen(
+                        title = tab.title,
+                        note = "$count ${if (count == 1) "library" else "libraries"} found. Browsing arrives in the next update.",
+                    )
                 }
-                val count = libraries.count { it.kind == kind }
-                ComingSoonScreen(
-                    title = selected.title,
-                    note = "$count ${if (count == 1) "library" else "libraries"} found. Browsing arrives in the next update.",
-                )
-            }
-            MainTab.Search -> ComingSoonScreen(title = "Search", note = "Search arrives in a later update.")
-            MainTab.Settings -> Box(Modifier.padding(top = tv.dp(110))) {
-                ServersScreen(
-                    activeUser = activeUser,
-                    hasPlexHome = hasPlexHome,
-                    servers = DuskGraph.servers,
-                    accountToken = accountToken,
-                    onSwitchUser = onSwitchUser,
-                    onSignOut = onSignOut,
-                )
+                MainTab.Search -> ComingSoonScreen(title = "Search", note = "Search arrives in a later update.")
+                MainTab.Settings -> Box(Modifier.padding(top = tv.dp(110))) {
+                    ServersScreen(
+                        activeUser = activeUser,
+                        hasPlexHome = hasPlexHome,
+                        servers = DuskGraph.servers,
+                        accountToken = accountToken,
+                        onSwitchUser = onSwitchUser,
+                        onSignOut = onSignOut,
+                    )
+                }
             }
         }
 
@@ -134,6 +140,13 @@ fun MainShell(
                 selected = selected,
                 onSelect = { selectedName = it.name },
                 selectedFocus = tabBarFocus,
+                onMoveDown = if (selected == MainTab.Home) {
+                    {
+                        runCatching { (if (hasHero) heroFocus else firstShelfFocus).requestFocus() }.isSuccess
+                    }
+                } else {
+                    null
+                },
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = tv.dp(56)),
             )
         }

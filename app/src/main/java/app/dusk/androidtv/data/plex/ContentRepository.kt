@@ -31,6 +31,11 @@ class ContentRepository(
     private val _home = MutableStateFlow(HomeContent())
     val home: StateFlow<HomeContent> = _home.asStateFlow()
 
+    private val _reports = MutableStateFlow<List<ServerLoadReport>>(emptyList())
+
+    /** Qué devolvió cada servidor para Home (filas, "continuar viendo", bibliotecas) o por qué falló. */
+    val reports: StateFlow<List<ServerLoadReport>> = _reports.asStateFlow()
+
     private val _connections = MutableStateFlow<Map<String, ServerConnection>>(emptyMap())
     val connections: StateFlow<Map<String, ServerConnection>> = _connections.asStateFlow()
 
@@ -55,6 +60,7 @@ class ContentRepository(
         _connections.value = connections.associateBy { it.serverId }
 
         if (connections.isEmpty()) {
+            _reports.value = emptyList()
             _libraries.value = emptyList()
             _home.value = HomeContent(isLoading = snapshot.discovering)
             return
@@ -65,22 +71,52 @@ class ContentRepository(
             connections.map { connection -> async { load(connection) } }.awaitAll()
         }
         _libraries.value = payloads.flatMap { it.libraries.orEmpty() }
+        _reports.value = payloads.map { payload ->
+            ServerLoadReport(
+                serverName = payload.connection.name,
+                hubRows = payload.hubs?.size,
+                continueWatching = payload.continueWatching?.size,
+                libraries = payload.libraries?.size,
+                error = payload.errors.joinToString("; ").takeIf { it.isNotEmpty() },
+            )
+        }
         _home.value = HomeMerge.build(payloads)
     }
 
-    /** Un servidor que falla nunca impide que los demás pinten Home. */
+    /** Un servidor que falla nunca impide que los demás pinten Home; el error se anota en el informe. */
     private suspend fun load(connection: ServerConnection): ServerHomePayload = coroutineScope {
         val hubs = async { attempt { api.hubs(connection) } }
         val continueWatching = async { attempt { api.continueWatching(connection) } }
         val libraries = async { attempt { api.libraries(connection) } }
-        ServerHomePayload(connection, hubs.await(), continueWatching.await(), libraries.await())
+        val hubsResult = hubs.await()
+        val continueResult = continueWatching.await()
+        val librariesResult = libraries.await()
+        ServerHomePayload(
+            connection = connection,
+            hubs = hubsResult.getOrNull(),
+            continueWatching = continueResult.getOrNull(),
+            libraries = librariesResult.getOrNull(),
+            errors = listOfNotNull(
+                hubsResult.exceptionOrNull()?.let { "Rows: ${it.message}" },
+                continueResult.exceptionOrNull()?.let { "Continue Watching: ${it.message}" },
+                librariesResult.exceptionOrNull()?.let { "Libraries: ${it.message}" },
+            ),
+        )
     }
 
-    private suspend fun <T> attempt(block: suspend () -> T): T? = try {
-        block()
+    private suspend fun <T> attempt(block: suspend () -> T): Result<T> = try {
+        Result.success(block())
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        null
+        Result.failure(e)
     }
 }
+
+data class ServerLoadReport(
+    val serverName: String,
+    val hubRows: Int?,
+    val continueWatching: Int?,
+    val libraries: Int?,
+    val error: String?,
+)

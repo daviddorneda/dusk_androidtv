@@ -3,11 +3,13 @@ package app.dusk.androidtv
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dusk.androidtv.data.plex.HomePhase
+import app.dusk.androidtv.data.prefs.AppearanceMode
 import app.dusk.androidtv.ui.account.HomeUserPickerScreen
 import app.dusk.androidtv.ui.home.LoadFailedScreen
 import app.dusk.androidtv.ui.home.LoadingScreen
@@ -21,7 +23,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         DuskGraph.init(applicationContext)
         setContent {
-            DuskTheme {
+            val appearance by DuskGraph.preferences.appearanceMode.collectAsStateWithLifecycle()
+            val dark = when (appearance) {
+                AppearanceMode.System -> isSystemInDarkTheme()
+                AppearanceMode.Light -> false
+                AppearanceMode.Dark -> true
+            }
+            DuskTheme(darkTheme = dark) {
                 DuskRoot()
             }
         }

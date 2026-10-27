@@ -17,6 +17,7 @@ data class ServerHomePayload(
     val hubs: List<PlexHub>?,
     val continueWatching: List<PlexItem>?,
     val libraries: List<PlexLibrary>?,
+    val errors: List<String> = emptyList(),
 )
 
 /**

@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -43,6 +45,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -60,6 +63,7 @@ import app.dusk.androidtv.ui.components.PosterCard
 import app.dusk.androidtv.ui.theme.DuskTheme
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.ceil
 
 private const val HERO_ROTATION_MS = 8_000L
@@ -74,10 +78,13 @@ fun HomeScreen(
     listState: LazyListState,
     heroFocus: FocusRequester,
     tabBarFocus: FocusRequester,
+    firstShelfFocus: FocusRequester,
     onPlay: (PlexItem) -> Unit,
     onOpen: (PlexItem) -> Unit,
 ) {
     val tv = DuskTheme.tv
+    val focusManager = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
     val colors = DuskTheme.colors
     val type = DuskTheme.type
     val content by DuskGraph.content.home.collectAsStateWithLifecycle()
@@ -92,6 +99,43 @@ fun HomeScreen(
             width = ceil(widthPt * tv.scale * density).toInt(),
             height = ceil(heightPt * tv.scale * density).toInt(),
         )
+    }
+
+    // Navegación vertical explícita. El foco por defecto de Compose no llega a una fila que aún no
+    // está compuesta (LazyColumn compone solo lo visible): si no se mueve, se lleva la fila vecina a
+    // la vista y se vuelve a intentar. Arriba desde la primera fila va al héroe o a la barra de pestañas.
+    val hasHeroNow = content.heroItems.isNotEmpty()
+    val firstShelfItemIndex = if (hasHeroNow) 2 else 1
+    val moveVertically: (FocusDirection, Int) -> Unit = { direction, shelfIndex ->
+        scope.launch {
+            if (focusManager.moveFocus(direction)) return@launch
+            if (direction == FocusDirection.Down) {
+                if (shelfIndex + 1 < content.shelves.size) {
+                    listState.animateScrollToItem(firstShelfItemIndex + shelfIndex + 1)
+                    focusManager.moveFocus(FocusDirection.Down)
+                }
+            } else if (shelfIndex == 0) {
+                if (hasHeroNow) {
+                    listState.animateScrollToItem(0)
+                    delay(80)
+                    runCatching { heroFocus.requestFocus() }
+                } else {
+                    runCatching { tabBarFocus.requestFocus() }
+                }
+            } else {
+                listState.animateScrollToItem(firstShelfItemIndex + shelfIndex - 1)
+                focusManager.moveFocus(FocusDirection.Up)
+            }
+        }
+    }
+    val moveFromHero: () -> Unit = {
+        scope.launch {
+            if (content.shelves.isNotEmpty()) {
+                listState.animateScrollToItem(firstShelfItemIndex)
+                delay(80)
+                runCatching { firstShelfFocus.requestFocus() }
+            }
+        }
     }
 
     Box(Modifier.fillMaxSize().background(colors.background)) {
@@ -116,6 +160,7 @@ fun HomeScreen(
                                 imageUrl = imageUrl,
                                 heroFocus = heroFocus,
                                 tabBarFocus = tabBarFocus,
+                                onMoveDown = moveFromHero,
                                 hasMore = content.shelves.isNotEmpty(),
                                 onPlay = onPlay,
                                 modifier = Modifier.fillParentMaxSize(),
@@ -123,8 +168,15 @@ fun HomeScreen(
                         }
                     }
                     item(key = "top-gap") { Spacer(Modifier.height(tv.dp(if (hasHero) 84 else 170))) }
-                    itemsIndexed(content.shelves, key = { index, shelf -> "$index|${shelf.id}" }) { _, shelf ->
-                        HomeShelfRow(shelf = shelf, imageUrl = imageUrl, onOpen = onOpen)
+                    itemsIndexed(content.shelves, key = { index, shelf -> "$index|${shelf.id}" }) { index, shelf ->
+                        HomeShelfRow(
+                            shelf = shelf,
+                            shelfIndex = index,
+                            imageUrl = imageUrl,
+                            firstCardFocus = if (index == 0) firstShelfFocus else null,
+                            onVertical = moveVertically,
+                            onOpen = onOpen,
+                        )
                         Spacer(Modifier.height(tv.dp(36)))
                     }
                     item(key = "bottom-gap") { Spacer(Modifier.height(tv.dp(88))) }
@@ -137,7 +189,10 @@ fun HomeScreen(
 @Composable
 private fun HomeShelfRow(
     shelf: HomeShelf,
+    shelfIndex: Int,
     imageUrl: (PlexItem, String?, Int, Int) -> String?,
+    firstCardFocus: FocusRequester?,
+    onVertical: (FocusDirection, Int) -> Unit,
     onOpen: (PlexItem) -> Unit,
 ) {
     val tv = DuskTheme.tv
@@ -151,7 +206,7 @@ private fun HomeShelfRow(
             contentPadding = PaddingValues(horizontal = tv.dp(52), vertical = tv.dp(20)),
             horizontalArrangement = Arrangement.spacedBy(tv.dp(34)),
         ) {
-            items(shelf.items, key = { it.storageKey }) { item ->
+            itemsIndexed(shelf.items, key = { _, item -> item.storageKey }) { cardIndex, item ->
                 PosterCard(
                     imageUrl = imageUrl(item, item.posterPath, POSTER_WIDTH_PT, POSTER_HEIGHT_PT),
                     title = item.posterCardTitle,
@@ -160,6 +215,15 @@ private fun HomeShelfRow(
                     isWatched = item.posterIsWatched,
                     width = tv.dp(POSTER_WIDTH_PT),
                     onClick = { onOpen(item) },
+                    focusRequester = if (cardIndex == 0) firstCardFocus else null,
+                    keyModifier = Modifier.onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                        when (event.key) {
+                            Key.DirectionDown -> { onVertical(FocusDirection.Down, shelfIndex); true }
+                            Key.DirectionUp -> { onVertical(FocusDirection.Up, shelfIndex); true }
+                            else -> false
+                        }
+                    },
                 )
             }
         }
@@ -177,6 +241,7 @@ private fun HomeHero(
     imageUrl: (PlexItem, String?, Int, Int) -> String?,
     heroFocus: FocusRequester,
     tabBarFocus: FocusRequester,
+    onMoveDown: () -> Unit,
     hasMore: Boolean,
     onPlay: (PlexItem) -> Unit,
     modifier: Modifier = Modifier,
@@ -254,6 +319,7 @@ private fun HomeHero(
                             Key.DirectionRight -> if (safePage < items.lastIndex) { page = safePage + 1; true } else false
                             // Arriba va a la pestaña activa, no a la más cercana (que cambiaría de pestaña).
                             Key.DirectionUp -> runCatching { tabBarFocus.requestFocus() }.isSuccess
+                            Key.DirectionDown -> { onMoveDown(); true }
                             else -> false
                         }
                     },

@@ -1,6 +1,8 @@
 package app.dusk.androidtv.ui.components
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +24,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import app.dusk.androidtv.R
 import app.dusk.androidtv.ui.theme.DuskTheme
 
@@ -45,6 +52,7 @@ fun DuskTabBar(
     onSelect: (MainTab) -> Unit,
     modifier: Modifier = Modifier,
     selectedFocus: FocusRequester? = null,
+    onMoveDown: (() -> Boolean)? = null,
 ) {
     val tv = DuskTheme.tv
     Row(
@@ -62,6 +70,7 @@ fun DuskTabBar(
                 isSelected = tab == selected,
                 onSelect = { onSelect(tab) },
                 focusRequester = if (tab == selected) selectedFocus else null,
+                onMoveDown = onMoveDown,
             )
         }
     }
@@ -73,19 +82,35 @@ private fun TabBarItem(
     isSelected: Boolean,
     onSelect: () -> Unit,
     focusRequester: FocusRequester?,
+    onMoveDown: (() -> Boolean)?,
 ) {
     val tv = DuskTheme.tv
     var focused by remember { mutableStateOf(false) }
-    val background = when {
-        focused -> Color.White
-        isSelected -> Color.White.copy(alpha = 0.16f)
-        else -> Color.Transparent
-    }
-    val content = if (focused) Color(0xFF090A0F) else Color.White.copy(alpha = if (isSelected) 1f else 0.82f)
+    val background by animateColorAsState(
+        targetValue = when {
+            focused -> Color.White
+            isSelected -> Color.White.copy(alpha = 0.16f)
+            else -> Color.Transparent
+        },
+        animationSpec = tween(220),
+        label = "tabBackground",
+    )
+    val content by animateColorAsState(
+        targetValue = if (focused) Color(0xFF090A0F) else Color.White.copy(alpha = if (isSelected) 1f else 0.82f),
+        animationSpec = tween(220),
+        label = "tabContent",
+    )
 
     Row(
         modifier = Modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                    onMoveDown?.invoke() ?: false
+                } else {
+                    false
+                }
+            }
             .onFocusChanged {
                 focused = it.isFocused
                 if (it.isFocused) onSelect()
