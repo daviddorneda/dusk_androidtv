@@ -1,5 +1,6 @@
 package app.dusk.androidtv.ui.components
 
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,6 +38,8 @@ fun DuskGlassButton(
     enabled: Boolean = true,
     loading: Boolean = false,
     focusRequester: FocusRequester? = null,
+    @DrawableRes iconRes: Int? = null,
+    onFocusChange: ((Boolean) -> Unit)? = null,
 ) {
     val tv = DuskTheme.tv
     val colors = DuskTheme.colors
@@ -54,7 +57,10 @@ fun DuskGlassButton(
     Row(
         modifier = modifier
             .then(focusModifier)
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                onFocusChange?.invoke(it.isFocused)
+            }
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(CircleShape)
             .background(container)
@@ -69,6 +75,7 @@ fun DuskGlassButton(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (loading) DuskSpinner(size = tv.dp(28), color = label)
+        if (iconRes != null && !loading) DuskIcon(iconRes, tv.dp(26), label)
         BasicText(
             text = text,
             style = DuskTheme.type.buttonLabel.copy(color = label, textAlign = TextAlign.Center),

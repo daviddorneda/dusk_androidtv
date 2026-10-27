@@ -11,7 +11,7 @@ import app.dusk.androidtv.data.plex.HomePhase
 import app.dusk.androidtv.ui.account.HomeUserPickerScreen
 import app.dusk.androidtv.ui.home.LoadFailedScreen
 import app.dusk.androidtv.ui.home.LoadingScreen
-import app.dusk.androidtv.ui.home.ServersScreen
+import app.dusk.androidtv.ui.home.MainShell
 import app.dusk.androidtv.ui.signin.SignInScreen
 import app.dusk.androidtv.ui.theme.DuskTheme
 import kotlinx.coroutines.launch
@@ -70,10 +70,9 @@ private fun AuthenticatedRoot(token: String) {
             onCancel = { home.cancelUserSelection() },
             onSignOut = { DuskGraph.signOut() },
         )
-        HomePhase.Ready -> ServersScreen(
+        HomePhase.Ready -> MainShell(
             activeUser = activeUser,
             hasPlexHome = home.hasPlexHome,
-            servers = DuskGraph.servers,
             accountToken = accountToken ?: token,
             onSwitchUser = { home.requestUserSelection() },
             onSignOut = { DuskGraph.signOut() },

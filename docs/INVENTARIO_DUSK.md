@@ -38,8 +38,8 @@ Cifras medidas sobre `Dusk/Sources`: **294 archivos Swift, ~89.500 líneas**.
 | Fase | Contenido | Estado |
 |---|---|---|
 | 1 | Tema (colores, tipografía, escala tvOS) y login con PIN de plex.tv/link | Hecha (tanda 1) |
-| 2 | Recursos de plex.tv, descubrimiento y sondeo de servidores, selector de perfil de Plex Home | **Tanda 2 (esta entrega)** |
-| 3 | Shell de pestañas (Home, Movies, TV Shows, Search, Settings) y Home con héroe y hubs | Pendiente |
+| 2 | Recursos de plex.tv, descubrimiento y sondeo de servidores, selector de perfil de Plex Home | Hecha (tanda 2) |
+| 3 | Shell de pestañas (Home, Movies, TV Shows, Search, Settings) y Home con héroe y hubs | **Tanda 3 (esta entrega)** |
 | 4 | Bibliotecas, detalle de película/serie/episodio, búsqueda | Pendiente |
 | 5 | Reproductor: reproducción directa, pistas, reanudar, timeline, saltar intro/créditos, Up Next | Pendiente |
 | 6 | Ajustes, Live TV, Playlists, Fotos, Seerr, Watchlist, Watch Next | Pendiente |

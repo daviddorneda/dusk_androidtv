@@ -15,12 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dusk.androidtv.data.plex.PlexHomeUser
@@ -33,8 +30,8 @@ import app.dusk.androidtv.ui.components.DuskTextButton
 import app.dusk.androidtv.ui.theme.DuskTheme
 
 /**
- * Pantalla PROVISIONAL de diagnóstico: muestra el perfil activo y el estado de conexión de cada
- * servidor. Se sustituye por Home (hubs y bibliotecas) en la fase 3.
+ * Contenido provisional de Ajustes: perfil activo y estado de conexión de cada servidor.
+ * Se sustituye por los ajustes reales (`SettingsTVView`) en una fase posterior.
  */
 @Composable
 fun ServersScreen(
@@ -51,9 +48,6 @@ fun ServersScreen(
     val entries by servers.entries.collectAsStateWithLifecycle()
     val discovering by servers.isDiscovering.collectAsStateWithLifecycle()
     val error by servers.error.collectAsStateWithLifecycle()
-    val retryFocus = remember { FocusRequester() }
-
-    LaunchedEffect(Unit) { runCatching { retryFocus.requestFocus() } }
 
     Column(
         modifier = Modifier
@@ -102,7 +96,6 @@ fun ServersScreen(
                 text = "Retry",
                 onClick = { servers.connectAll(accountToken) },
                 loading = discovering,
-                focusRequester = retryFocus,
             )
             if (hasPlexHome) {
                 DuskGlassButton(text = "Switch User", onClick = onSwitchUser)
