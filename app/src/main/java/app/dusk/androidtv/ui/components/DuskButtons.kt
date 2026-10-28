@@ -136,6 +136,7 @@ fun DuskGlassIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
+    onFocusChange: ((Boolean) -> Unit)? = null,
 ) {
     val tv = DuskTheme.tv
     val colors = DuskTheme.colors
@@ -152,7 +153,10 @@ fun DuskGlassIconButton(
     Box(
         modifier = modifier
             .then(focusModifier)
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                onFocusChange?.invoke(it.isFocused)
+            }
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .size(tv.dp(66))
             .clip(CircleShape)

@@ -76,6 +76,7 @@ fun MainShell(
     val heroFocus = remember { FocusRequester() }
     val tabBarFocus = remember { FocusRequester() }
     val firstShelfFocus = remember { FocusRequester() }
+    val settingsFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val scrolledOffTop by remember {
         derivedStateOf {
@@ -165,6 +166,7 @@ fun MainShell(
                     accountToken = accountToken,
                     onSwitchUser = onSwitchUser,
                     onSignOut = onSignOut,
+                    firstFocus = settingsFocus,
                 )
             }
         }
@@ -175,12 +177,14 @@ fun MainShell(
                 selected = selected,
                 onSelect = { selectedName = it.name },
                 selectedFocus = tabBarFocus,
-                onMoveDown = if (selected == MainTab.Home) {
-                    {
-                        runCatching { (if (hasHero) heroFocus else firstShelfFocus).requestFocus() }.isSuccess
+                onMoveDown = when (selected) {
+                    MainTab.Home -> {
+                        { runCatching { (if (hasHero) heroFocus else firstShelfFocus).requestFocus() }.isSuccess }
                     }
-                } else {
-                    null
+                    MainTab.Settings -> {
+                        { runCatching { settingsFocus.requestFocus() }.isSuccess }
+                    }
+                    else -> null
                 },
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = tv.dp(56)),
             )

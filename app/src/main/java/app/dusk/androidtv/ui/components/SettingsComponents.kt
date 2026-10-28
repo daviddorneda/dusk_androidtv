@@ -23,6 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,6 +97,7 @@ fun SettingsActionRow(
     tint: Color? = null,
     detail: String? = null,
     showsChevron: Boolean = false,
+    focusRequester: FocusRequester? = null,
 ) {
     val tv = DuskTheme.tv
     val colors = DuskTheme.colors
@@ -109,6 +112,7 @@ fun SettingsActionRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged { focused = it.isFocused }
             .padding(vertical = tv.dp(4))
             .clip(RoundedCornerShape(tv.dp(18)))

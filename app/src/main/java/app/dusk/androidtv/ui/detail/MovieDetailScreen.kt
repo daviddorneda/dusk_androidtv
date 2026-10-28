@@ -1,7 +1,11 @@
 package app.dusk.androidtv.ui.detail
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +25,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,8 +39,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
@@ -55,10 +68,14 @@ import app.dusk.androidtv.ui.components.HeroBackdropOverlay
 import app.dusk.androidtv.ui.components.HeroBottomFade
 import app.dusk.androidtv.ui.components.HeroOverlay
 import app.dusk.androidtv.ui.components.duskHeroBottomFade
-import app.dusk.androidtv.ui.components.duskTvFocusEffect
+import app.dusk.androidtv.ui.components.NoAutoScrollSpec
+import app.dusk.androidtv.ui.components.RowBringIntoViewSpec
+import app.dusk.androidtv.ui.components.duskTvFocusGlow
+import app.dusk.androidtv.ui.components.duskTvFocusScale
 import app.dusk.androidtv.ui.nav.Route
 import app.dusk.androidtv.ui.theme.DuskTheme
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 import kotlin.math.ceil
 
 private const val DETAIL_HORIZONTAL_PADDING_PT = 48
@@ -114,6 +131,7 @@ private fun DetailError(message: String, onRetry: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MovieDetailContent(
     details: MediaDetails,
@@ -125,15 +143,50 @@ private fun MovieDetailContent(
     val padding = tv.dp(DETAIL_HORIZONTAL_PADDING_PT)
     val screenHeightPt = LocalConfiguration.current.screenHeightDp / tv.scale
     val heroBasePt = minOf(maxOf(screenHeightPt * 0.72f, 520f), 760f)
-    val density = LocalDensity.current.density
+    val densityObj = LocalDensity.current
+    val density = densityObj.density
     val playFocus = remember { FocusRequester() }
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    var viewportHeight by remember { mutableIntStateOf(0) }
+    var castTop by remember { mutableFloatStateOf(0f) }
+    var castBottom by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(details.ratingKey) {
         kotlinx.coroutines.delay(150)
         runCatching { playFocus.requestFocus() }
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    // El desplazamiento lo decide dónde está el foco, no el foco de Compose (que movía la página
+    // sola al llegar a "Play"): arriba del todo con el héroe, y lo justo para ver el reparto.
+    val scrollToTop: () -> Unit = {
+        scope.launch { scrollState.animateScrollTo(0, tween(350, easing = FastOutSlowInEasing)) }
+    }
+    val revealCast: () -> Unit = {
+        scope.launch {
+            val topMargin = with(densityObj) { tv.dp(48).toPx() }
+            val bottomMargin = with(densityObj) { tv.dp(40).toPx() }
+            val current = scrollState.value.toFloat()
+            val target = when {
+                castTop < current + topMargin -> castTop - topMargin
+                castBottom > current + viewportHeight - bottomMargin ->
+                    minOf(castBottom - viewportHeight + bottomMargin, castTop - topMargin)
+                else -> current
+            }
+            scrollState.animateScrollTo(
+                target.coerceIn(0f, scrollState.maxValue.toFloat()).toInt(),
+                tween(350, easing = FastOutSlowInEasing),
+            )
+        }
+    }
+
+    CompositionLocalProvider(LocalBringIntoViewSpec provides NoAutoScrollSpec) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .onSizeChanged { viewportHeight = it.height }
+            .verticalScroll(scrollState),
+    ) {
         // ---- Héroe
         Box(Modifier.fillMaxWidth().height(tv.dp(heroBasePt))) {
             Box(Modifier.fillMaxSize().duskHeroBottomFade(HeroBottomFade.Standard)) {
@@ -182,11 +235,13 @@ private fun MovieDetailContent(
                         iconRes = R.drawable.ic_play,
                         onClick = { /* Reproductor: fase 5 */ },
                         focusRequester = playFocus,
+                        onFocusChange = { if (it) scrollToTop() },
                         modifier = Modifier.widthIn(min = tv.dp(220)),
                     )
                     DuskGlassIconButton(
                         iconRes = if (details.isWatched) R.drawable.ic_visibility_off else R.drawable.ic_visibility,
                         onClick = onToggleWatched,
+                        onFocusChange = { if (it) scrollToTop() },
                     )
                 }
             }
@@ -211,7 +266,17 @@ private fun MovieDetailContent(
 
         // ---- Reparto
         if (details.roles.isNotEmpty()) {
-            CastSection(roles = details.roles.take(20), imageUrl = imageUrl, modifier = Modifier.padding(top = tv.dp(40)))
+            CastSection(
+                roles = details.roles.take(20),
+                imageUrl = imageUrl,
+                onCardFocused = revealCast,
+                modifier = Modifier
+                    .padding(top = tv.dp(40))
+                    .onGloballyPositioned { coordinates ->
+                        castTop = coordinates.positionInParent().y
+                        castBottom = castTop + coordinates.size.height
+                    },
+            )
         }
 
         // ---- Datos del medio
@@ -230,6 +295,7 @@ private fun MovieDetailContent(
                 )
             }
         }
+    }
     }
 }
 
@@ -263,10 +329,12 @@ private fun DetailTitle(details: MediaDetails, imageUrl: (String?, Int, Int) -> 
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CastSection(
     roles: List<PlexRole>,
     imageUrl: (String?, Int, Int) -> String?,
+    onCardFocused: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val tv = DuskTheme.tv
@@ -277,32 +345,50 @@ private fun CastSection(
             style = DuskTheme.type.sectionHeader,
             modifier = Modifier.padding(horizontal = padding),
         )
-        LazyRow(
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = padding, vertical = tv.dp(24)),
-            horizontalArrangement = Arrangement.spacedBy(tv.dp(24)),
-        ) {
-            items(roles, key = { "${it.name}|${it.roleName}" }) { role ->
-                ActorCreditCard(role = role, imageUrl = imageUrl)
+        CompositionLocalProvider(LocalBringIntoViewSpec provides RowBringIntoViewSpec) {
+            LazyRow(
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = padding, vertical = tv.dp(28)),
+                horizontalArrangement = Arrangement.spacedBy(tv.dp(24)),
+            ) {
+                items(roles, key = { "${it.name}|${it.roleName}" }) { role ->
+                    ActorCreditCard(role = role, imageUrl = imageUrl, onFocused = onCardFocused)
+                }
             }
         }
     }
 }
 
-/** `ActorCreditCard`: avatar de 144 pt con esquinas de 16 pt, nombre y papel debajo. */
+/**
+ * `ActorCreditCard`: avatar de 144 pt con esquinas de 16 pt, nombre y papel debajo. Como en el
+ * original, la escala 1.05 afecta a toda la ficha, pero el resplandor blanco rodea solo el avatar
+ * (el texto recibe su propio halo suave).
+ */
 @Composable
-private fun ActorCreditCard(role: PlexRole, imageUrl: (String?, Int, Int) -> String?) {
+private fun ActorCreditCard(role: PlexRole, imageUrl: (String?, Int, Int) -> String?, onFocused: () -> Unit) {
     val tv = DuskTheme.tv
     val colors = DuskTheme.colors
     val type = DuskTheme.type
     val density = LocalDensity.current.density
     val shape = RoundedCornerShape(tv.dp(16))
     var focused by remember { mutableStateOf(false) }
+    val textGlow = if (focused) {
+        Shadow(
+            color = Color.White.copy(alpha = 0.34f),
+            offset = Offset(0f, 6f * tv.scale * density),
+            blurRadius = 16f * tv.scale * density,
+        )
+    } else {
+        null
+    }
 
     Column(
         modifier = Modifier
             .width(tv.dp(156))
-            .duskTvFocusEffect(focused, shape)
-            .onFocusChanged { focused = it.isFocused }
+            .duskTvFocusScale(focused)
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused) onFocused()
+            }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -311,7 +397,11 @@ private fun ActorCreditCard(role: PlexRole, imageUrl: (String?, Int, Int) -> Str
         verticalArrangement = Arrangement.spacedBy(tv.dp(14)),
     ) {
         Box(
-            modifier = Modifier.size(tv.dp(144)).clip(shape).background(colors.surface),
+            modifier = Modifier
+                .size(tv.dp(144))
+                .duskTvFocusGlow(focused, shape, colors.surface)
+                .clip(shape)
+                .background(colors.surface),
             contentAlignment = Alignment.Center,
         ) {
             DuskIcon(R.drawable.ic_person, tv.dp(44), colors.textSecondary)
@@ -335,14 +425,18 @@ private fun ActorCreditCard(role: PlexRole, imageUrl: (String?, Int, Int) -> Str
         ) {
             BasicText(
                 text = role.name,
-                style = type.cardSubtitle.copy(color = colors.textPrimary, textAlign = TextAlign.Center),
+                style = type.cardSubtitle.copy(color = colors.textPrimary, textAlign = TextAlign.Center, shadow = textGlow),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             if (!role.roleName.isNullOrEmpty()) {
                 BasicText(
                     text = role.roleName,
-                    style = type.cardSubtitle.copy(color = colors.textPrimary.copy(alpha = 0.72f), textAlign = TextAlign.Center),
+                    style = type.cardSubtitle.copy(
+                        color = colors.textPrimary.copy(alpha = 0.72f),
+                        textAlign = TextAlign.Center,
+                        shadow = textGlow,
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

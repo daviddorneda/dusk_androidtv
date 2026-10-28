@@ -54,6 +54,7 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 | 4 | 3 (correcciones) | Tema oscuro por defecto, interruptor, navegación vertical, informe de carga por servidor en Settings |
 | 5 | 3 (correcciones) | Foco de pósters tipo `.card` de tvOS, desplazamiento suave sin saltos, "More" como pista, subir a la barra de pestañas, barra que vuelve a la pestaña activa, Ajustes con la estructura del original |
 | 6 | 4a | Navegación con botón Atrás, detalle de película (héroe, sinopsis, reparto, datos del medio, marcar visto) abierto desde Home; velo y fundido del héroe de Home como en el original |
+| 7 | 4a (correcciones) | Resplandor blanco de foco dibujado como la sombra difusa de SwiftUI, detalle de película sin desplazamiento automático y con el resplandor del reparto solo en el avatar, Ajustes navegable con el mando desde la barra |
 
 ### Fase 4 por partes
 
@@ -71,12 +72,14 @@ Nota: en el original, la pestaña Movies / TV Shows abre primero las *recomendac
 
 - **Apariencia:** oscura por defecto en tvOS (el autor lo deja escrito: el modo claro no gusta en esta app). Se replica; el ajuste Light/Dark/System existe por dentro y su botón llegará con los Ajustes.
 - **Foco de los pósters:** el original usa el estilo de botón `.card` nativo de tvOS (elevación, sombra suave y brillo). Se aproxima con escala ~1.1×, sombra y brillo (`DUSK_CARD_FOCUS_SCALE` en `Focus.kt`).
-- **Foco en filas propias** (selector de usuarios, teclado del PIN): escala 1.05 y resplandor blanco, como `duskTVOSFocusedScale`.
+- **Foco en filas propias** (selector de usuarios, teclado del PIN, reparto): escala 1.05 en 0.18 s y resplandor blanco, que en el original es la sombra de SwiftUI `.shadow(white 0.34, radio 16, y 6)`. En el port se dibuja como un halo gaussiano con esa misma silueta (no con la elevación de Material, que daba un borde duro). En el reparto la escala afecta a toda la ficha, el halo rodea el avatar y el texto lleva su propio halo.
 - **Filas de Ajustes:** banda de foco redondeada (18 pt) al 20 % del color de texto, dentro de tarjetas de 28 pt.
 - **"More ⌄" del héroe:** solo una pista visual, no se puede enfocar. Aparece mientras el botón de reproducir tiene el foco y la flecha rebota.
 - **Héroe:** izquierda/derecha cambia de elemento; abajo lleva a la primera tarjeta de la primera fila con la página fijada en el "pliegue" (hueco de 84 pt); arriba lleva a la barra de pestañas.
 - **Barra de pestañas:** píldora flotante; el contenido cambia al mover el foco entre pestañas; al subir desde el contenido se llega siempre a la pestaña activa.
 - **Detalle de película:** héroe de 520–760 pt con el fondo, velo vertical (0.18→0.86) y horizontal (0.86→0), fundido inferior estándar, logo de título de 124 pt, línea de metadatos, acciones (Play / Resume y marcar visto), sinopsis, reparto (avatares de 144 pt) y datos del medio. Al volver desde el detalle el foco vuelve a Home arriba (el original restaura el póster exacto).
+- **Clasificación por edades:** el original muestra el texto tal cual lo devuelve Plex (`contentRating`), sin convertirlo en símbolo. Por eso un servidor configurado para España devuelve "es/18". Se replica igual; el valor depende del país de certificación de la biblioteca en Plex.
+- **Datos del medio:** el original toma solo la primera versión del medio (`media.first`) y muestra los campos que Plex da a nivel de medio: resolución, códec de vídeo, códec de audio y canales. Es la pista que Plex considera principal (normalmente la predeterminada); no muestra idioma ni distingue pistas. El selector de pistas con idiomas está en el reproductor (fase 5).
 - **Ajustes:** estructura del original (título, secciones en tarjetas, "Account" con Sign Out en rojo). "Servers" es un añadido provisional de diagnóstico.
 
 ## Pendientes conocidos de fidelidad

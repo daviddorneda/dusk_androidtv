@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dusk.androidtv.DuskGraph
 import app.dusk.androidtv.data.plex.PlexHomeUser
@@ -43,6 +44,7 @@ fun SettingsScreen(
     accountToken: String,
     onSwitchUser: () -> Unit,
     onSignOut: () -> Unit,
+    firstFocus: FocusRequester,
 ) {
     val tv = DuskTheme.tv
     val colors = DuskTheme.colors
@@ -96,7 +98,12 @@ fun SettingsScreen(
                         }
                     }
                     SettingsRowDivider()
-                    SettingsActionRow(title = "Switch User", showsChevron = true, onClick = onSwitchUser)
+                    SettingsActionRow(
+                        title = "Switch User",
+                        showsChevron = true,
+                        onClick = onSwitchUser,
+                        focusRequester = firstFocus,
+                    )
                 }
             }
 
@@ -120,6 +127,7 @@ fun SettingsScreen(
                     title = "Retry Connection",
                     onClick = { servers.connectAll(accountToken) },
                     detail = if (discovering) "Connecting…" else null,
+                    focusRequester = if (hasPlexHome && activeUser != null) null else firstFocus,
                 )
             }
 
