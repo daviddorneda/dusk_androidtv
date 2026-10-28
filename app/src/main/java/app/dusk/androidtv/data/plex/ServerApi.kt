@@ -62,4 +62,31 @@ class ServerApi(private val plex: PlexClient) {
             ?.mapNotNull { (it as? JsonObject)?.let { obj -> PlexHub.fromJson(obj, connection.serverId) } }
             ?: emptyList()
     }
+
+    /** `GET /library/metadata/{ratingKey}`: ficha completa de un elemento. */
+    suspend fun details(connection: ServerConnection, ratingKey: String): MediaDetails {
+        val container = container(connection, "/library/metadata/$ratingKey", listOf("includeGuids" to "1"))
+        val metadata = (container["Metadata"] as? JsonArray)?.firstOrNull() as? JsonObject
+            ?: throw PlexException("This item is no longer available.")
+        return MediaDetails.fromJson(metadata, connection.serverId)
+            ?: throw PlexException("Unexpected item format from ${connection.name}.")
+    }
+
+    /** Marca como visto / no visto (`/:/scrobble` y `/:/unscrobble`). */
+    suspend fun setWatched(connection: ServerConnection, ratingKey: String, watched: Boolean) =
+        withContext(Dispatchers.IO) {
+            val path = if (watched) "/:/scrobble" else "/:/unscrobble"
+            val url = (connection.baseUrl.trimEnd('/') + path).toHttpUrl().newBuilder()
+                .addQueryParameter("key", ratingKey)
+                .addQueryParameter("identifier", "com.plexapp.plugins.library")
+                .build()
+            val request = Request.Builder().url(url).headers(plex.headers(connection.token)).get().build()
+            try {
+                plex.httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) throw PlexHttpException(response.code)
+                }
+            } catch (e: IOException) {
+                throw PlexException(e.message ?: "Could not reach ${connection.name}.")
+            }
+        }
 }

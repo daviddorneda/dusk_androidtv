@@ -72,9 +72,13 @@ import app.dusk.androidtv.data.plex.PlexMediaType
 import app.dusk.androidtv.ui.components.DuskGlassButton
 import app.dusk.androidtv.ui.components.DuskIcon
 import app.dusk.androidtv.ui.components.DuskSpinner
+import app.dusk.androidtv.ui.components.HeroBackdropOverlay
+import app.dusk.androidtv.ui.components.HeroBottomFade
+import app.dusk.androidtv.ui.components.HeroOverlay
 import app.dusk.androidtv.ui.components.NoAutoScrollSpec
 import app.dusk.androidtv.ui.components.PosterCard
 import app.dusk.androidtv.ui.components.RowBringIntoViewSpec
+import app.dusk.androidtv.ui.components.duskHeroBottomFade
 import app.dusk.androidtv.ui.theme.DuskTheme
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
@@ -343,35 +347,18 @@ private fun HomeHero(
     val item = items[safePage]
 
     Box(modifier.background(colors.background)) {
-        Crossfade(targetState = item, animationSpec = tween(600), label = "heroBackdrop") { current ->
-            AsyncImage(
-                model = imageUrl(current, current.heroBackgroundPath, 1920, 1080),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
+        // Fondo con el velo `.cinematic` y el fundido `.fullBleed` del original (View+Platform).
+        Box(Modifier.fillMaxSize().duskHeroBottomFade(HeroBottomFade.FullBleed)) {
+            Crossfade(targetState = item, animationSpec = tween(600), label = "heroBackdrop") { current ->
+                AsyncImage(
+                    model = imageUrl(current, current.heroBackgroundPath, 1920, 1080),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            HeroBackdropOverlay(HeroOverlay.Cinematic)
         }
-
-        // Velo cinemático: oscurece la izquierda (texto) y funde el pie con el fondo de la página.
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.horizontalGradient(
-                    0f to Color.Black.copy(alpha = 0.70f),
-                    0.55f to Color.Black.copy(alpha = 0.25f),
-                    1f to Color.Transparent,
-                ),
-            ),
-        )
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    0f to Color.Transparent,
-                    0.45f to Color.Black.copy(alpha = 0.20f),
-                    0.80f to Color.Black.copy(alpha = 0.78f),
-                    1f to colors.background,
-                ),
-            ),
-        )
 
         Column(
             modifier = Modifier

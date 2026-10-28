@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -25,8 +26,11 @@ import app.dusk.androidtv.DuskGraph
 import app.dusk.androidtv.data.plex.LibraryKind
 import app.dusk.androidtv.data.plex.PlexHomeUser
 import app.dusk.androidtv.data.plex.PlexLibrary
+import app.dusk.androidtv.data.plex.PlexMediaType
 import app.dusk.androidtv.ui.components.DuskTabBar
 import app.dusk.androidtv.ui.components.MainTab
+import app.dusk.androidtv.ui.detail.MovieDetailScreen
+import app.dusk.androidtv.ui.nav.Route
 import app.dusk.androidtv.ui.theme.DuskTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -64,6 +68,10 @@ fun MainShell(
     var selectedName by rememberSaveable { mutableStateOf(MainTab.Home.name) }
     val selected = runCatching { MainTab.valueOf(selectedName) }.getOrNull()?.takeIf { it in tabs } ?: MainTab.Home
 
+    // Destinos apilados sobre la pestaña (detalle...). Cubren la barra y se cierran con Atrás.
+    val backStack = remember { mutableStateListOf<Route>() }
+    val route = backStack.lastOrNull()
+
     val homeListState = rememberLazyListState()
     val heroFocus = remember { FocusRequester() }
     val tabBarFocus = remember { FocusRequester() }
@@ -88,6 +96,18 @@ fun MainShell(
         }
     }
 
+    var wasInDetail by remember { mutableStateOf(false) }
+    LaunchedEffect(route) {
+        if (route != null) {
+            wasInDetail = true
+        } else if (wasInDetail) {
+            wasInDetail = false
+            homeListState.scrollToItem(0)
+            delay(250)
+            runCatching { (if (hasHero) heroFocus else firstShelfFocus).requestFocus() }
+        }
+    }
+
     BackHandler(enabled = selected != MainTab.Home || scrolledOffTop) {
         if (selected != MainTab.Home) {
             selectedName = MainTab.Home.name
@@ -100,8 +120,16 @@ fun MainShell(
         }
     }
 
+    BackHandler(enabled = backStack.isNotEmpty()) {
+        backStack.removeAt(backStack.lastIndex)
+    }
+
     Box(Modifier.fillMaxSize().background(DuskTheme.colors.background)) {
-        Crossfade(targetState = selected, animationSpec = tween(260), label = "tabContent") { tab ->
+        if (route != null) {
+            when (route) {
+                is Route.MovieDetail -> MovieDetailScreen(route)
+            }
+        } else Crossfade(targetState = selected, animationSpec = tween(260), label = "tabContent") { tab ->
             when (tab) {
                 MainTab.Home -> HomeScreen(
                     listState = homeListState,
@@ -109,7 +137,13 @@ fun MainShell(
                     tabBarFocus = tabBarFocus,
                     firstShelfFocus = firstShelfFocus,
                     onPlay = { /* Reproductor: fase 5 */ },
-                    onOpen = { /* Detalle: fase 4 */ },
+                    onOpen = { item ->
+                        // Por ahora solo las películas tienen detalle; series y episodios llegan después.
+                        val serverId = item.serverId
+                        if (item.type == PlexMediaType.Movie && serverId != null) {
+                            backStack.add(Route.MovieDetail(serverId, item.ratingKey))
+                        }
+                    },
                 )
                 MainTab.Movies, MainTab.TvShows, MainTab.Videos -> {
                     val kind = when (tab) {
@@ -135,7 +169,7 @@ fun MainShell(
             }
         }
 
-        if (barVisible) {
+        if (barVisible && route == null) {
             DuskTabBar(
                 tabs = tabs,
                 selected = selected,

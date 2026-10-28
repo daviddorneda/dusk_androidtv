@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
@@ -121,5 +123,47 @@ fun DuskTextButton(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BasicText(text = text, style = DuskTheme.type.buttonLabel.copy(color = textColor))
+    }
+}
+
+/**
+ * Botón circular de icono de las acciones secundarias del héroe de detalle
+ * (`DetailHeroSecondaryIconLabel`): mismo "glass" que el botón principal.
+ */
+@Composable
+fun DuskGlassIconButton(
+    @DrawableRes iconRes: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    focusRequester: FocusRequester? = null,
+) {
+    val tv = DuskTheme.tv
+    val colors = DuskTheme.colors
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (focused) 1.08f else 1f, label = "glassIconFocusScale")
+    val container = if (focused) Color.White else Color.White.copy(alpha = if (colors.isDark) 0.14f else 0.60f)
+    val tint = when {
+        focused -> Color(0xFF090A0F)
+        colors.isDark -> Color(0xFFF2F2F7)
+        else -> Color(0xFF1C1C1E)
+    }
+    val focusModifier = if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
+
+    Box(
+        modifier = modifier
+            .then(focusModifier)
+            .onFocusChanged { focused = it.isFocused }
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .size(tv.dp(66))
+            .clip(CircleShape)
+            .background(container)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        DuskIcon(iconRes, tv.dp(30), tint)
     }
 }

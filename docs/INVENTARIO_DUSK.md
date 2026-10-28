@@ -41,7 +41,7 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 |---|---|---|
 | 1 | Tema (colores, tipografía, escala tvOS) y login con PIN de plex.tv/link | Cerrada |
 | 2 | Recursos de plex.tv, descubrimiento y sondeo de servidores, selector de perfil de Plex Home | Cerrada |
-| 3 | Shell de pestañas (Home, Movies, TV Shows, Search, Settings) y Home con héroe y filas | **En curso** (tandas 3, 4 y 5; falta validar la 5) |
+| 3 | Shell de pestañas (Home, Movies, TV Shows, Search, Settings) y Home con héroe y filas | Casi cerrada (tandas 3, 4 y 5; falta validar la 5) |
 | 4 | Bibliotecas, detalle de película/serie/episodio, búsqueda | Pendiente |
 | 5 | Reproductor: reproducción directa, pistas, reanudar, timeline, saltar intro/créditos, Up Next | Pendiente |
 | 6 | Ajustes completos, Live TV, Playlists, Fotos, Seerr, Watchlist, Watch Next | Pendiente |
@@ -53,6 +53,19 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 | 3 | 3 | Shell de pestañas y Home (héroe y filas), primera versión |
 | 4 | 3 (correcciones) | Tema oscuro por defecto, interruptor, navegación vertical, informe de carga por servidor en Settings |
 | 5 | 3 (correcciones) | Foco de pósters tipo `.card` de tvOS, desplazamiento suave sin saltos, "More" como pista, subir a la barra de pestañas, barra que vuelve a la pestaña activa, Ajustes con la estructura del original |
+| 6 | 4a | Navegación con botón Atrás, detalle de película (héroe, sinopsis, reparto, datos del medio, marcar visto) abierto desde Home; velo y fundido del héroe de Home como en el original |
+
+### Fase 4 por partes
+
+| Parte | Contenido | Estado |
+|---|---|---|
+| 4a | Navegación y detalle de película | Tanda 6 |
+| 4b | Pestañas Movies / TV Shows: biblioteca en rejilla (ordenar, filtrar, índice por letras) | Pendiente |
+| 4c | Detalle de serie, temporada y episodio | Pendiente |
+| 4d | Búsqueda | Pendiente |
+| 4e | Recomendaciones por biblioteca, colecciones, ficha de persona, extras y tráiler | Pendiente |
+
+Nota: en el original, la pestaña Movies / TV Shows abre primero las *recomendaciones* de la biblioteca (motor de unas 2.000 líneas) y desde ahí se llega a la rejilla. En el port se empezará por la rejilla (4b) y las recomendaciones llegarán en 4e.
 
 ## Decisiones de fidelidad (qué hace el original y cómo se replica)
 
@@ -63,6 +76,7 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 - **"More ⌄" del héroe:** solo una pista visual, no se puede enfocar. Aparece mientras el botón de reproducir tiene el foco y la flecha rebota.
 - **Héroe:** izquierda/derecha cambia de elemento; abajo lleva a la primera tarjeta de la primera fila con la página fijada en el "pliegue" (hueco de 84 pt); arriba lleva a la barra de pestañas.
 - **Barra de pestañas:** píldora flotante; el contenido cambia al mover el foco entre pestañas; al subir desde el contenido se llega siempre a la pestaña activa.
+- **Detalle de película:** héroe de 520–760 pt con el fondo, velo vertical (0.18→0.86) y horizontal (0.86→0), fundido inferior estándar, logo de título de 124 pt, línea de metadatos, acciones (Play / Resume y marcar visto), sinopsis, reparto (avatares de 144 pt) y datos del medio. Al volver desde el detalle el foco vuelve a Home arriba (el original restaura el póster exacto).
 - **Ajustes:** estructura del original (título, secciones en tarjetas, "Account" con Sign Out en rojo). "Servers" es un añadido provisional de diagnóstico.
 
 ## Pendientes conocidos de fidelidad
@@ -70,6 +84,7 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 - Tipografía: fuente del sistema en lugar de SF Pro (valorar Inter).
 - Ajustes: faltan las secciones Support, Playback, Appearance, Seerr y About.
 - Home: faltan Live TV, Watchlist y estantes personalizados; orden de filas por biblioteca.
+- Detalle de película: faltan tráiler/extras, valoraciones por fuente, descarga de subtítulos, valorar, listas, Watchlist, colecciones, selección de versión y reproducir; al volver no se restaura el póster exacto.
 
 ## Archivos de referencia en el original
 - Estilo: `STYLE.md` y `Dusk/Sources/Shared/DuskTypography.swift`

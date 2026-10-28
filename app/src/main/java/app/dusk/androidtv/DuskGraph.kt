@@ -26,6 +26,8 @@ object DuskGraph {
         private set
     lateinit var servers: ServerManager
         private set
+    lateinit var serverApi: ServerApi
+        private set
     lateinit var content: ContentRepository
         private set
 
@@ -40,7 +42,8 @@ object DuskGraph {
         plex = PlexClient(session.clientIdentifier, version)
         home = HomeSessionManager(plex, session)
         servers = ServerManager(plex, session, scope)
-        content = ContentRepository(ServerApi(plex), servers, scope)
+        serverApi = ServerApi(plex)
+        content = ContentRepository(serverApi, servers, scope)
     }
 
     /** Cierra sesión: desconecta servidores, olvida el perfil y borra el token. */
