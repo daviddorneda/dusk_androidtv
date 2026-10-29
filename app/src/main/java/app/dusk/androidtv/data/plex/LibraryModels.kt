@@ -40,21 +40,21 @@ enum class LibrarySortField(
     }
 }
 
-data class LibrarySortOption(val field: LibrarySortField, val isDescending: Boolean) {
+data class LibrarySortOption(val sortField: LibrarySortField, val isDescending: Boolean) {
     /** Etiqueta del chip y del menú: "Title A to Z", "Date Added · Newest First", "Random". */
     val title: String
         get() = when {
-            !field.hasDirection -> field.title
-            field == LibrarySortField.Title ->
-                "Title " + if (isDescending) field.descendingTitle else field.ascendingTitle
-            else -> "${field.title} · " + if (isDescending) field.descendingTitle else field.ascendingTitle
+            !sortField.hasDirection -> sortField.title
+            sortField == LibrarySortField.Title ->
+                "Title " + if (isDescending) sortField.descendingTitle else sortField.ascendingTitle
+            else -> "${sortField.title} · " + if (isDescending) sortField.descendingTitle else sortField.ascendingTitle
         }
 
     val plexValue: String
         get() = when {
-            !field.hasDirection -> field.plexKey
-            isDescending -> "${field.plexKey}:desc"
-            else -> field.plexKey
+            !sortField.hasDirection -> sortField.plexKey
+            isDescending -> "${sortField.plexKey}:desc"
+            else -> sortField.plexKey
         }
 
     companion object {
