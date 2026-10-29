@@ -55,13 +55,14 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 | 5 | 3 (correcciones) | Foco de pósters tipo `.card` de tvOS, desplazamiento suave sin saltos, "More" como pista, subir a la barra de pestañas, barra que vuelve a la pestaña activa, Ajustes con la estructura del original |
 | 6 | 4a | Navegación con botón Atrás, detalle de película (héroe, sinopsis, reparto, datos del medio, marcar visto) abierto desde Home; velo y fundido del héroe de Home como en el original |
 | 7 | 4a (correcciones) | Resplandor blanco de foco dibujado como la sombra difusa de SwiftUI, detalle de película sin desplazamiento automático y con el resplandor del reparto solo en el avatar, Ajustes navegable con el mando desde la barra |
+| 8 | 4b (primera parte) | Pestañas Movies / TV Shows / Videos con rejilla de biblioteca paginada, chips de Género, "Unwatched" y Orden con menús, barra de pestañas que se oculta al bajar |
 
 ### Fase 4 por partes
 
 | Parte | Contenido | Estado |
 |---|---|---|
 | 4a | Navegación y detalle de película | Tanda 6 |
-| 4b | Pestañas Movies / TV Shows: biblioteca en rejilla (ordenar, filtrar, índice por letras) | Pendiente |
+| 4b | Pestañas Movies / TV Shows: biblioteca en rejilla (ordenar, filtrar, índice por letras) | Tanda 8 (rejilla, género, no vistos, orden); faltan índice A–Z, hoja de filtros y colecciones |
 | 4c | Detalle de serie, temporada y episodio | Pendiente |
 | 4d | Búsqueda | Pendiente |
 | 4e | Recomendaciones por biblioteca, colecciones, ficha de persona, extras y tráiler | Pendiente |
@@ -80,6 +81,8 @@ Nota: en el original, la pestaña Movies / TV Shows abre primero las *recomendac
 - **Detalle de película:** héroe de 520–760 pt con el fondo, velo vertical (0.18→0.86) y horizontal (0.86→0), fundido inferior estándar, logo de título de 124 pt, línea de metadatos, acciones (Play / Resume y marcar visto), sinopsis, reparto (avatares de 144 pt) y datos del medio. Al volver desde el detalle el foco vuelve a Home arriba (el original restaura el póster exacto).
 - **Clasificación por edades:** el original muestra el texto tal cual lo devuelve Plex (`contentRating`), sin convertirlo en símbolo. Por eso un servidor configurado para España devuelve "es/18". Se replica igual; el valor depende del país de certificación de la biblioteca en Plex.
 - **Datos del medio:** el original toma solo la primera versión del medio (`media.first`) y muestra los campos que Plex da a nivel de medio: resolución, códec de vídeo, códec de audio y canales. Es la pista que Plex considera principal (normalmente la predeterminada); no muestra idioma ni distingue pistas. El selector de pistas con idiomas está en el reproductor (fase 5).
+- **Fondo de página:** color plano `#090A0F` (`duskTVOSPageBackground`, sin degradado). El degradado que se ve a la izquierda en las capturas del repo es idéntico en pantallas distintas, así que es del marco del montaje y no de la app.
+- **Rejilla de biblioteca:** columnas calculadas como `AdaptivePosterGridLayout` (póster preferido de 196 pt, separación 40 pt, margen 48 pt: 7 columnas a 1920 pt). Chips de 18 pt de radio con borde fino. Varias bibliotecas del mismo tipo se recorren una tras otra sin repetir títulos.
 - **Ajustes:** estructura del original (título, secciones en tarjetas, "Account" con Sign Out en rojo). "Servers" es un añadido provisional de diagnóstico.
 
 ## Pendientes conocidos de fidelidad
@@ -87,6 +90,7 @@ Nota: en el original, la pestaña Movies / TV Shows abre primero las *recomendac
 - Tipografía: fuente del sistema en lugar de SF Pro (valorar Inter).
 - Ajustes: faltan las secciones Support, Playback, Appearance, Seerr y About.
 - Home: faltan Live TV, Watchlist y estantes personalizados; orden de filas por biblioteca.
+- Bibliotecas: faltan el índice A–Z, la hoja de filtros, las colecciones y las recomendaciones; el orden y "Unwatched" no se recuerdan por biblioteca; el menú de los chips es una lista desplegable propia, no el menú nativo.
 - Detalle de película: faltan tráiler/extras, valoraciones por fuente, descarga de subtítulos, valorar, listas, Watchlist, colecciones, selección de versión y reproducir; al volver no se restaura el póster exacto.
 
 ## Archivos de referencia en el original

@@ -89,4 +89,37 @@ class ServerApi(private val plex: PlexClient) {
                 throw PlexException(e.message ?: "Could not reach ${connection.name}.")
             }
         }
+
+    /** `GET /library/sections/{id}/all` paginado, con orden y filtros. */
+    suspend fun libraryItems(
+        connection: ServerConnection,
+        sectionId: String,
+        start: Int,
+        size: Int,
+        sort: String? = null,
+        filters: Map<String, String> = emptyMap(),
+    ): LibraryPage {
+        val query = mutableListOf(
+            "X-Plex-Container-Start" to start.toString(),
+            "X-Plex-Container-Size" to size.toString(),
+        )
+        if (!sort.isNullOrEmpty()) query += "sort" to sort
+        filters.toSortedMap().forEach { (name, value) -> query += name to value }
+        val container = container(connection, "/library/sections/$sectionId/all", query)
+        val items = (container["Metadata"] as? JsonArray)
+            ?.mapNotNull { (it as? JsonObject)?.let { obj -> PlexItem.fromJson(obj, connection.serverId) } }
+            ?: emptyList()
+        return LibraryPage(items = items, totalSize = container.int("totalSize"))
+    }
+
+    /** `GET /library/sections/{id}/genre`: géneros de la biblioteca. */
+    suspend fun libraryGenres(connection: ServerConnection, sectionId: String): List<GenreOption> {
+        val container = container(connection, "/library/sections/$sectionId/genre")
+        return (container["Directory"] as? JsonArray)?.mapNotNull { element ->
+            val obj = element as? JsonObject ?: return@mapNotNull null
+            val title = obj.string("title") ?: return@mapNotNull null
+            val key = obj.string("key") ?: return@mapNotNull null
+            GenreOption(title = title, key = key)
+        } ?: emptyList()
+    }
 }

@@ -39,9 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
@@ -360,8 +358,7 @@ private fun CastSection(
 
 /**
  * `ActorCreditCard`: avatar de 144 pt con esquinas de 16 pt, nombre y papel debajo. Como en el
- * original, la escala 1.05 afecta a toda la ficha, pero el resplandor blanco rodea solo el avatar
- * (el texto recibe su propio halo suave).
+ * original, la escala 1.05 afecta a toda la ficha, pero el resplandor blanco rodea solo el avatar.
  */
 @Composable
 private fun ActorCreditCard(role: PlexRole, imageUrl: (String?, Int, Int) -> String?, onFocused: () -> Unit) {
@@ -371,16 +368,6 @@ private fun ActorCreditCard(role: PlexRole, imageUrl: (String?, Int, Int) -> Str
     val density = LocalDensity.current.density
     val shape = RoundedCornerShape(tv.dp(16))
     var focused by remember { mutableStateOf(false) }
-    val textGlow = if (focused) {
-        Shadow(
-            color = Color.White.copy(alpha = 0.34f),
-            offset = Offset(0f, 6f * tv.scale * density),
-            blurRadius = 16f * tv.scale * density,
-        )
-    } else {
-        null
-    }
-
     Column(
         modifier = Modifier
             .width(tv.dp(156))
@@ -425,7 +412,7 @@ private fun ActorCreditCard(role: PlexRole, imageUrl: (String?, Int, Int) -> Str
         ) {
             BasicText(
                 text = role.name,
-                style = type.cardSubtitle.copy(color = colors.textPrimary, textAlign = TextAlign.Center, shadow = textGlow),
+                style = type.cardSubtitle.copy(color = colors.textPrimary, textAlign = TextAlign.Center),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -435,7 +422,6 @@ private fun ActorCreditCard(role: PlexRole, imageUrl: (String?, Int, Int) -> Str
                     style = type.cardSubtitle.copy(
                         color = colors.textPrimary.copy(alpha = 0.72f),
                         textAlign = TextAlign.Center,
-                        shadow = textGlow,
                     ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

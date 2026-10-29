@@ -25,11 +25,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dusk.androidtv.DuskGraph
 import app.dusk.androidtv.data.plex.LibraryKind
 import app.dusk.androidtv.data.plex.PlexHomeUser
+import app.dusk.androidtv.data.plex.PlexItem
 import app.dusk.androidtv.data.plex.PlexLibrary
 import app.dusk.androidtv.data.plex.PlexMediaType
 import app.dusk.androidtv.ui.components.DuskTabBar
 import app.dusk.androidtv.ui.components.MainTab
 import app.dusk.androidtv.ui.detail.MovieDetailScreen
+import app.dusk.androidtv.ui.library.LibraryGridScreen
 import app.dusk.androidtv.ui.nav.Route
 import app.dusk.androidtv.ui.theme.DuskTheme
 import kotlinx.coroutines.delay
@@ -77,6 +79,8 @@ fun MainShell(
     val tabBarFocus = remember { FocusRequester() }
     val firstShelfFocus = remember { FocusRequester() }
     val settingsFocus = remember { FocusRequester() }
+    val libraryFocus = remember { FocusRequester() }
+    var libraryScrolled by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val scrolledOffTop by remember {
         derivedStateOf {
@@ -84,7 +88,11 @@ fun MainShell(
                 homeListState.firstVisibleItemScrollOffset > homeListState.layoutInfo.viewportSize.height / 2
         }
     }
-    val barVisible = selected != MainTab.Home || !scrolledOffTop
+    val barVisible = when (selected) {
+        MainTab.Home -> !scrolledOffTop
+        MainTab.Movies, MainTab.TvShows, MainTab.Videos -> !libraryScrolled
+        else -> true
+    }
 
     // El foco inicial va al botón de reproducir del héroe, solo la primera vez (no al cambiar de pestaña).
     var initialFocusDone by remember { mutableStateOf(false) }
@@ -103,9 +111,14 @@ fun MainShell(
             wasInDetail = true
         } else if (wasInDetail) {
             wasInDetail = false
-            homeListState.scrollToItem(0)
-            delay(250)
-            runCatching { (if (hasHero) heroFocus else firstShelfFocus).requestFocus() }
+            if (selected == MainTab.Home) {
+                homeListState.scrollToItem(0)
+                delay(250)
+                runCatching { (if (hasHero) heroFocus else firstShelfFocus).requestFocus() }
+            } else {
+                delay(250)
+                runCatching { libraryFocus.requestFocus() }
+            }
         }
     }
 
@@ -118,6 +131,14 @@ fun MainShell(
                 delay(100)
                 runCatching { heroFocus.requestFocus() }
             }
+        }
+    }
+
+    // Por ahora solo las películas tienen detalle; series y episodios llegan después.
+    val openItem: (PlexItem) -> Unit = { item ->
+        val serverId = item.serverId
+        if (item.type == PlexMediaType.Movie && serverId != null) {
+            backStack.add(Route.MovieDetail(serverId, item.ratingKey))
         }
     }
 
@@ -138,26 +159,19 @@ fun MainShell(
                     tabBarFocus = tabBarFocus,
                     firstShelfFocus = firstShelfFocus,
                     onPlay = { /* Reproductor: fase 5 */ },
-                    onOpen = { item ->
-                        // Por ahora solo las películas tienen detalle; series y episodios llegan después.
-                        val serverId = item.serverId
-                        if (item.type == PlexMediaType.Movie && serverId != null) {
-                            backStack.add(Route.MovieDetail(serverId, item.ratingKey))
-                        }
-                    },
+                    onOpen = openItem,
                 )
-                MainTab.Movies, MainTab.TvShows, MainTab.Videos -> {
-                    val kind = when (tab) {
+                MainTab.Movies, MainTab.TvShows, MainTab.Videos -> LibraryGridScreen(
+                    kind = when (tab) {
                         MainTab.Movies -> LibraryKind.Movie
                         MainTab.TvShows -> LibraryKind.Show
                         else -> LibraryKind.Video
-                    }
-                    val count = libraries.count { it.kind == kind }
-                    ComingSoonScreen(
-                        title = tab.title,
-                        note = "$count ${if (count == 1) "library" else "libraries"} found. Browsing arrives in the next update.",
-                    )
-                }
+                    },
+                    firstChipFocus = libraryFocus,
+                    tabBarFocus = tabBarFocus,
+                    onScrolledChange = { libraryScrolled = it },
+                    onOpen = openItem,
+                )
                 MainTab.Search -> ComingSoonScreen(title = "Search", note = "Search arrives in a later update.")
                 MainTab.Settings -> SettingsScreen(
                     activeUser = activeUser,
@@ -183,6 +197,9 @@ fun MainShell(
                     }
                     MainTab.Settings -> {
                         { runCatching { settingsFocus.requestFocus() }.isSuccess }
+                    }
+                    MainTab.Movies, MainTab.TvShows, MainTab.Videos -> {
+                        { runCatching { libraryFocus.requestFocus() }.isSuccess }
                     }
                     else -> null
                 },
