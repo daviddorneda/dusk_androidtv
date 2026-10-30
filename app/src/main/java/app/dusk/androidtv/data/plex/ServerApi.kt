@@ -122,4 +122,12 @@ class ServerApi(private val plex: PlexClient) {
             GenreOption(title = title, key = key)
         } ?: emptyList()
     }
+
+    /** `GET /library/metadata/{id}/children`: temporadas de una serie o episodios de una temporada. */
+    suspend fun children(connection: ServerConnection, ratingKey: String): List<PlexItem> {
+        val container = container(connection, "/library/metadata/$ratingKey/children")
+        return (container["Metadata"] as? JsonArray)
+            ?.mapNotNull { (it as? JsonObject)?.let { obj -> PlexItem.fromJson(obj, connection.serverId) } }
+            ?: emptyList()
+    }
 }

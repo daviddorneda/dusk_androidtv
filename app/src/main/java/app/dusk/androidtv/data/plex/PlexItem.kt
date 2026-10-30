@@ -91,6 +91,7 @@ data class PlexItem(
     val viewedLeafCount: Int?,
     val childCount: Int?,
     val guid: String?,
+    val originallyAvailableAt: String? = null,
 ) {
     val storageKey: String get() = "${serverId.orEmpty()}|$ratingKey"
 
@@ -234,6 +235,7 @@ data class PlexItem(
                 viewedLeafCount = json.int("viewedLeafCount"),
                 childCount = json.int("childCount"),
                 guid = json.string("guid"),
+                originallyAvailableAt = json.string("originallyAvailableAt"),
             )
         }
 

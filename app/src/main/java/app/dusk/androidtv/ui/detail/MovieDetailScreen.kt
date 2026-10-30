@@ -113,7 +113,7 @@ fun MovieDetailScreen(route: Route.MovieDetail) {
 }
 
 @Composable
-private fun DetailError(message: String, onRetry: () -> Unit) {
+internal fun DetailError(message: String, onRetry: () -> Unit) {
     val tv = DuskTheme.tv
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
@@ -329,17 +329,18 @@ private fun DetailTitle(details: MediaDetails, imageUrl: (String?, Int, Int) -> 
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CastSection(
+internal fun CastSection(
     roles: List<PlexRole>,
     imageUrl: (String?, Int, Int) -> String?,
     onCardFocused: () -> Unit,
     modifier: Modifier = Modifier,
+    title: String = "Cast",
 ) {
     val tv = DuskTheme.tv
     val padding = tv.dp(DETAIL_HORIZONTAL_PADDING_PT)
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(tv.dp(10))) {
         BasicText(
-            text = "Cast",
+            text = title,
             style = DuskTheme.type.sectionHeader,
             modifier = Modifier.padding(horizontal = padding),
         )

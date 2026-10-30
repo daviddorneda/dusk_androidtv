@@ -56,6 +56,7 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 | 6 | 4a | Navegación con botón Atrás, detalle de película (héroe, sinopsis, reparto, datos del medio, marcar visto) abierto desde Home; velo y fundido del héroe de Home como en el original |
 | 7 | 4a (correcciones) | Resplandor blanco de foco dibujado como la sombra difusa de SwiftUI, detalle de película sin desplazamiento automático y con el resplandor del reparto solo en el avatar, Ajustes navegable con el mando desde la barra |
 | 8 | 4b (primera parte) | Pestañas Movies / TV Shows / Videos con rejilla de biblioteca paginada, chips de Género, "Unwatched" y Orden con menús, barra de pestañas que se oculta al bajar |
+| 9 | 4c | Página de serie (sirve para serie, temporada y episodio): banner que sigue al episodio enfocado, pastillas de temporada, fila de episodios con progreso, resumen y reparto del episodio; pulsar series, temporadas y episodios en Home y bibliotecas la abre |
 
 ### Fase 4 por partes
 
@@ -63,7 +64,7 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 |---|---|---|
 | 4a | Navegación y detalle de película | Tanda 6 |
 | 4b | Pestañas Movies / TV Shows: biblioteca en rejilla (ordenar, filtrar, índice por letras) | Tanda 8 (rejilla, género, no vistos, orden); faltan índice A–Z, hoja de filtros y colecciones |
-| 4c | Detalle de serie, temporada y episodio | Pendiente |
+| 4c | Detalle de serie, temporada y episodio | Tanda 9 (una sola página, como tvOS); faltan tráiler, extras, colecciones, valorar y listas |
 | 4d | Búsqueda | Pendiente |
 | 4e | Recomendaciones por biblioteca, colecciones, ficha de persona, extras y tráiler | Pendiente |
 
@@ -83,6 +84,7 @@ Nota: en el original, la pestaña Movies / TV Shows abre primero las *recomendac
 - **Datos del medio:** el original toma solo la primera versión del medio (`media.first`) y muestra los campos que Plex da a nivel de medio: resolución, códec de vídeo, códec de audio y canales. Es la pista que Plex considera principal (normalmente la predeterminada); no muestra idioma ni distingue pistas. El selector de pistas con idiomas está en el reproductor (fase 5).
 - **Fondo de página:** color plano `#090A0F` (`duskTVOSPageBackground`, sin degradado). El degradado que se ve a la izquierda en las capturas del repo es idéntico en pantallas distintas, así que es del marco del montaje y no de la app.
 - **Rejilla de biblioteca:** columnas calculadas como `AdaptivePosterGridLayout` (póster preferido de 196 pt, separación 40 pt, margen 48 pt: 7 columnas a 1920 pt). Chips de 18 pt de radio con borde fino. Varias bibliotecas del mismo tipo se recorren una tras otra sin repetir títulos.
+- **Series:** tvOS no tiene pantallas separadas de serie, temporada y episodio; las tres rutas abren una sola página (`SeriesDetailView`) que se abre en la temporada pedida (si no, la primera regular con algo sin ver) y en el episodio pedido (si no, el siguiente por ver: primero uno a medias, luego el primero sin ver). El fotograma de un episodio sin ver se desenfoca para no destripar nada; donde el sistema no puede desenfocar (antes de Android 12), el banner usa el fondo de la serie y las miniaturas no se desenfocan.
 - **Ajustes:** estructura del original (título, secciones en tarjetas, "Account" con Sign Out en rojo). "Servers" es un añadido provisional de diagnóstico.
 
 ## Pendientes conocidos de fidelidad

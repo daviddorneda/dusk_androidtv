@@ -31,6 +31,7 @@ import app.dusk.androidtv.data.plex.PlexMediaType
 import app.dusk.androidtv.ui.components.DuskTabBar
 import app.dusk.androidtv.ui.components.MainTab
 import app.dusk.androidtv.ui.detail.MovieDetailScreen
+import app.dusk.androidtv.ui.detail.SeriesDetailScreen
 import app.dusk.androidtv.ui.library.LibraryGridScreen
 import app.dusk.androidtv.ui.nav.Route
 import app.dusk.androidtv.ui.theme.DuskTheme
@@ -134,11 +135,23 @@ fun MainShell(
         }
     }
 
-    // Por ahora solo las películas tienen detalle; series y episodios llegan después.
+    // Película -> su detalle. Serie, temporada y episodio abren la misma página (como en tvOS), que se
+    // abre en la temporada y el episodio indicados.
     val openItem: (PlexItem) -> Unit = { item ->
         val serverId = item.serverId
-        if (item.type == PlexMediaType.Movie && serverId != null) {
-            backStack.add(Route.MovieDetail(serverId, item.ratingKey))
+        if (serverId != null) {
+            val destination: Route? = when (item.type) {
+                PlexMediaType.Movie -> Route.MovieDetail(serverId, item.ratingKey)
+                PlexMediaType.Show -> Route.SeriesDetail(serverId, item.ratingKey)
+                PlexMediaType.Season -> item.parentRatingKey?.let {
+                    Route.SeriesDetail(serverId, it, seasonRatingKey = item.ratingKey)
+                }
+                PlexMediaType.Episode -> item.grandparentRatingKey?.let {
+                    Route.SeriesDetail(serverId, it, seasonRatingKey = item.parentRatingKey, episodeRatingKey = item.ratingKey)
+                }
+                else -> null
+            }
+            if (destination != null) backStack.add(destination)
         }
     }
 
@@ -150,6 +163,7 @@ fun MainShell(
         if (route != null) {
             when (route) {
                 is Route.MovieDetail -> MovieDetailScreen(route)
+                is Route.SeriesDetail -> SeriesDetailScreen(route)
             }
         } else Crossfade(targetState = selected, animationSpec = tween(260), label = "tabContent") { tab ->
             when (tab) {
