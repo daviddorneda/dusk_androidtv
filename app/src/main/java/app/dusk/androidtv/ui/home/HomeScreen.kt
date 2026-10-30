@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -87,6 +88,14 @@ import kotlinx.coroutines.launch
 import kotlin.math.ceil
 
 private const val HERO_ROTATION_MS = 8_000L
+
+/** Dónde estaba el foco en Home, para recuperarlo al volver de un detalle. */
+class HomeFocusMemory {
+    var onHero: Boolean = false
+    var shelfIndex: Int = -1
+    var cardIndex: Int = 0
+    var cardKey: String? = null
+}
 private const val POSTER_WIDTH_PT = 232
 private const val POSTER_HEIGHT_PT = 348
 private const val SHELF_TOP_MARGIN_PT = 84
@@ -136,6 +145,9 @@ fun HomeScreen(
     heroFocus: FocusRequester,
     tabBarFocus: FocusRequester,
     firstShelfFocus: FocusRequester,
+    memory: HomeFocusMemory,
+    restoreFocus: Boolean,
+    onRestoreHandled: () -> Unit,
     onPlay: (PlexItem) -> Unit,
     onOpen: (PlexItem) -> Unit,
 ) {
@@ -163,6 +175,24 @@ fun HomeScreen(
     val topMarginPx = with(density) { tv.dp(SHELF_TOP_MARGIN_PT).toPx() }
     val bottomMarginPx = with(density) { tv.dp(SHELF_BOTTOM_MARGIN_PT).toPx() }
     var focusedShelf by remember { mutableIntStateOf(-1) }
+
+    // Al volver de un detalle: la fila del último póster se reabre desplazada a esa tarjeta y el foco
+    // regresa a ella (o al botón del héroe si estaba allí).
+    val restoreTarget = remember {
+        if (restoreFocus) Triple(memory.onHero, memory.shelfIndex to memory.cardIndex, memory.cardKey) else null
+    }
+    val restoreRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        if (restoreTarget != null) {
+            val (onHero, _, key) = restoreTarget
+            for (attempt in 0 until 15) {
+                delay(100)
+                val requester = if (onHero || key == null) heroFocus else restoreRequester
+                if (requester.tryFocus()) break
+            }
+        }
+        onRestoreHandled()
+    }
 
     // El desplazamiento vertical lo decide la fila enfocada (no el foco de Compose): una sola
     // animación suave por cambio de fila y nada al mover el foco de lado dentro de la misma fila.
@@ -239,7 +269,12 @@ fun HomeScreen(
                                 heroFocus = heroFocus,
                                 tabBarFocus = tabBarFocus,
                                 onMoveDown = moveFromHero,
-                                onPlayFocusChange = { if (it) focusedShelf = -1 },
+                                onPlayFocusChange = {
+                                    if (it) {
+                                        focusedShelf = -1
+                                        memory.onHero = true
+                                    }
+                                },
                                 hasMore = content.shelves.isNotEmpty(),
                                 onPlay = onPlay,
                                 modifier = Modifier.fillParentMaxSize(),
@@ -254,7 +289,16 @@ fun HomeScreen(
                             imageUrl = imageUrl,
                             firstCardFocus = if (index == 0) firstShelfFocus else null,
                             onVertical = moveVertically,
-                            onCardFocused = { focusedShelf = index },
+                            onCardFocused = { cardIndex, key ->
+                                focusedShelf = index
+                                memory.onHero = false
+                                memory.shelfIndex = index
+                                memory.cardIndex = cardIndex
+                                memory.cardKey = key
+                            },
+                            restoreCardIndex = restoreTarget?.takeIf { !it.first && it.second.first == index }?.second?.second,
+                            restoreKey = restoreTarget?.third,
+                            restoreRequester = restoreRequester,
                             onOpen = onOpen,
                         )
                         Spacer(Modifier.height(tv.dp(36)))
@@ -274,10 +318,14 @@ private fun HomeShelfRow(
     imageUrl: (PlexItem, String?, Int, Int) -> String?,
     firstCardFocus: FocusRequester?,
     onVertical: (FocusDirection, Int) -> Unit,
-    onCardFocused: () -> Unit,
+    onCardFocused: (Int, String) -> Unit,
+    restoreCardIndex: Int?,
+    restoreKey: String?,
+    restoreRequester: FocusRequester,
     onOpen: (PlexItem) -> Unit,
 ) {
     val tv = DuskTheme.tv
+    val rowState = rememberLazyListState(initialFirstVisibleItemIndex = restoreCardIndex ?: 0)
     Column(verticalArrangement = Arrangement.spacedBy(tv.dp(22))) {
         BasicText(
             text = shelf.title,
@@ -286,6 +334,7 @@ private fun HomeShelfRow(
         )
         CompositionLocalProvider(LocalBringIntoViewSpec provides RowBringIntoViewSpec) {
             LazyRow(
+                state = rowState,
                 // Margen vertical para que el póster elevado y su sombra no queden recortados.
                 contentPadding = PaddingValues(horizontal = tv.dp(52), vertical = tv.dp(28)),
                 horizontalArrangement = Arrangement.spacedBy(tv.dp(34)),
@@ -299,8 +348,12 @@ private fun HomeShelfRow(
                         isWatched = item.posterIsWatched,
                         width = tv.dp(POSTER_WIDTH_PT),
                         onClick = { onOpen(item) },
-                        focusRequester = if (cardIndex == 0) firstCardFocus else null,
-                        onFocused = onCardFocused,
+                        focusRequester = when {
+                            restoreCardIndex != null && item.storageKey == restoreKey -> restoreRequester
+                            cardIndex == 0 -> firstCardFocus
+                            else -> null
+                        },
+                        onFocused = { onCardFocused(cardIndex, item.storageKey) },
                         keyModifier = Modifier.onPreviewKeyEvent { event ->
                             if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                             when (event.key) {

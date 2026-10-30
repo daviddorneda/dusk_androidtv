@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -14,6 +15,7 @@ import app.dusk.androidtv.ui.account.HomeUserPickerScreen
 import app.dusk.androidtv.ui.home.LoadFailedScreen
 import app.dusk.androidtv.ui.home.LoadingScreen
 import app.dusk.androidtv.ui.home.MainShell
+import app.dusk.androidtv.ui.components.LocalBlursUnwatchedEpisodes
 import app.dusk.androidtv.ui.signin.SignInScreen
 import app.dusk.androidtv.ui.theme.DuskTheme
 import kotlinx.coroutines.launch
@@ -29,8 +31,11 @@ class MainActivity : ComponentActivity() {
                 AppearanceMode.Light -> false
                 AppearanceMode.Dark -> true
             }
+            val blursUnwatched by DuskGraph.preferences.blursUnwatchedEpisodes.collectAsStateWithLifecycle()
             DuskTheme(darkTheme = dark) {
-                DuskRoot()
+                CompositionLocalProvider(LocalBlursUnwatchedEpisodes provides blursUnwatched) {
+                    DuskRoot()
+                }
             }
         }
     }

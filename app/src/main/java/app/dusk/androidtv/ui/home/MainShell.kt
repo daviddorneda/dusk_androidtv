@@ -106,22 +106,20 @@ fun MainShell(
         }
     }
 
+    // Al cerrar un detalle, la pestaña (Home o una biblioteca) recupera el foco en el último póster.
+    val homeFocusMemory = remember { HomeFocusMemory() }
     var wasInDetail by remember { mutableStateOf(false) }
+    var pendingRestore by remember { mutableStateOf(false) }
     LaunchedEffect(route) {
         if (route != null) {
             wasInDetail = true
         } else if (wasInDetail) {
             wasInDetail = false
-            if (selected == MainTab.Home) {
-                homeListState.scrollToItem(0)
-                delay(250)
-                runCatching { (if (hasHero) heroFocus else firstShelfFocus).requestFocus() }
-            } else {
-                delay(250)
-                runCatching { libraryFocus.requestFocus() }
-            }
+            pendingRestore = selected == MainTab.Home || selected == MainTab.Movies ||
+                selected == MainTab.TvShows || selected == MainTab.Videos
         }
     }
+    LaunchedEffect(selected) { pendingRestore = false }
 
     BackHandler(enabled = selected != MainTab.Home || scrolledOffTop) {
         if (selected != MainTab.Home) {
@@ -172,6 +170,9 @@ fun MainShell(
                     heroFocus = heroFocus,
                     tabBarFocus = tabBarFocus,
                     firstShelfFocus = firstShelfFocus,
+                    memory = homeFocusMemory,
+                    restoreFocus = pendingRestore,
+                    onRestoreHandled = { pendingRestore = false },
                     onPlay = { /* Reproductor: fase 5 */ },
                     onOpen = openItem,
                 )
@@ -185,6 +186,8 @@ fun MainShell(
                     tabBarFocus = tabBarFocus,
                     onScrolledChange = { libraryScrolled = it },
                     onOpen = openItem,
+                    restoreFocus = pendingRestore,
+                    onRestoreHandled = { pendingRestore = false },
                 )
                 MainTab.Search -> ComingSoonScreen(title = "Search", note = "Search arrives in a later update.")
                 MainTab.Settings -> SettingsScreen(

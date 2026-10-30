@@ -46,6 +46,10 @@ class LibraryGridViewModel(private val kind: LibraryKind) : ViewModel() {
     private val _state = MutableStateFlow(LibraryGridState())
     val state: StateFlow<LibraryGridState> = _state.asStateFlow()
 
+    /** Último póster enfocado: al volver desde un detalle el foco regresa a él. */
+    var lastFocusedKey: String? = null
+    var lastFocusedRow: Int = 0
+
     private var libraries: List<PlexLibrary> = emptyList()
     private var genreKeys: Map<String, Map<String, String>> = emptyMap() // biblioteca -> título -> clave
     private var libraryIndex = 0

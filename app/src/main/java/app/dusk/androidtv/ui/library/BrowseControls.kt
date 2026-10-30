@@ -134,7 +134,7 @@ fun <T> MenuChip(
 }
 
 @Composable
-private fun <T> MenuCard(
+internal fun <T> MenuCard(
     options: List<T>,
     isSelected: (T) -> Boolean,
     optionTitle: (T) -> String,

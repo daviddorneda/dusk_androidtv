@@ -1,6 +1,5 @@
 package app.dusk.androidtv.ui.detail
 
-import android.os.Build
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -21,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -45,9 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -76,7 +74,9 @@ import app.dusk.androidtv.ui.components.HeroBackdropOverlay
 import app.dusk.androidtv.ui.components.HeroBottomFade
 import app.dusk.androidtv.ui.components.HeroOverlay
 import app.dusk.androidtv.ui.components.NoAutoScrollSpec
+import app.dusk.androidtv.ui.components.LocalBlursUnwatchedEpisodes
 import app.dusk.androidtv.ui.components.RowBringIntoViewSpec
+import app.dusk.androidtv.ui.components.SpoilerAsyncImage
 import app.dusk.androidtv.ui.components.duskHeroBottomFade
 import app.dusk.androidtv.ui.components.duskTvFocusGlow
 import app.dusk.androidtv.ui.components.duskTvFocusScale
@@ -94,8 +94,6 @@ private const val HORIZONTAL_PADDING_PT = 48
 private const val SEASON_HEADER_HEIGHT_PT = 76
 private const val EPISODE_META_HEIGHT_PT = 92
 private const val EPISODE_CAST_MIN_HEIGHT_PT = 288
-
-private val canBlurImages: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
 /**
  * Página de serie de tvOS (`SeriesDetailView`): sirve para serie, temporada y episodio. Un banner
@@ -197,27 +195,23 @@ private fun SeriesContent(
                 val stillPath = focusedDetails?.thumb ?: focused?.thumb
                 val bannerPath = focusedDetails?.thumb ?: focusedDetails?.art ?: focused?.thumb ?: focused?.art
                     ?: seasonDetails.art ?: show.art
-                // El fotograma de un episodio sin ver se desenfoca para no destripar nada. Donde el
-                // sistema no puede desenfocar (antes de Android 12), se usa el fondo de la serie.
+                // Con "Blur Unwatched Episodes" activo, el fotograma de un episodio sin ver se desenfoca
+                // para no destripar nada (sin el ojo tachado en el banner, como en el original).
                 val isUnwatchedStill = focused != null && !focused.isWatchedEpisode &&
                     bannerPath != null && bannerPath == stillPath
-                val effectivePath = if (isUnwatchedStill && !canBlurImages) seasonDetails.art ?: show.art else bannerPath
-                val blur = isUnwatchedStill && canBlurImages
                 val bannerUrl = imageUrl(
-                    effectivePath,
+                    bannerPath,
                     ceil(screenWidthPt * tv.scale * density).toInt(),
                     ceil(heroBasePt * tv.scale * density).toInt(),
                 )
 
                 Box(Modifier.fillMaxSize().duskHeroBottomFade(HeroBottomFade.Standard)) {
-                    Crossfade(targetState = bannerUrl to blur, animationSpec = tween(400), label = "seriesBackdrop") { (url, blurred) ->
-                        AsyncImage(
+                    Crossfade(targetState = bannerUrl to isUnwatchedStill, animationSpec = tween(400), label = "seriesBackdrop") { (url, unwatchedStill) ->
+                        SpoilerAsyncImage(
                             model = url,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .then(if (blurred) Modifier.blur(tv.dp(40), BlurredEdgeTreatment.Rectangle) else Modifier),
+                            isUnwatchedEpisodeImage = unwatchedStill,
+                            showsGlyph = false,
+                            modifier = Modifier.fillMaxSize(),
                         )
                     }
                     HeroBackdropOverlay(HeroOverlay.Standard)
@@ -295,18 +289,20 @@ private fun SeriesContent(
             // ---- Pastillas de temporada o título "Episodes" (misma altura para que nada salte)
             Box(
                 modifier = Modifier
-                    .padding(horizontal = padding)
                     .padding(top = tv.dp(16))
                     .fillMaxWidth()
                     .height(tv.dp(SEASON_HEADER_HEIGHT_PT)),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 if (state.seasonPills.isEmpty()) {
-                    BasicText(text = "Episodes", style = type.sectionHeader)
+                    BasicText(text = "Episodes", style = type.sectionHeader, modifier = Modifier.padding(horizontal = padding))
                 } else {
                     CompositionLocalProvider(LocalBringIntoViewSpec provides RowBringIntoViewSpec) {
+                        // La fila es más alta que el hueco (y centrada en él) para que la pastilla
+                        // enfocada, que crece, no quede recortada por arriba, abajo ni a los lados.
                         LazyRow(
-                            contentPadding = PaddingValues(vertical = tv.dp(14)),
+                            modifier = Modifier.fillMaxWidth().requiredHeight(tv.dp(SEASON_HEADER_HEIGHT_PT + 56)),
+                            contentPadding = PaddingValues(horizontal = padding, vertical = tv.dp(28)),
                             horizontalArrangement = Arrangement.spacedBy(tv.dp(18)),
                         ) {
                             items(state.seasonPills, key = { it.ratingKey }) { season ->
@@ -521,8 +517,8 @@ private fun EpisodeCard(episode: PlexItem, imageUrl: String?, artworkWidthPt: Fl
     val width = tv.dp(artworkWidthPt)
     val watched = episode.isWatchedEpisode
     val progress = episode.posterProgress
-    // Un fotograma de episodio sin ver se desenfoca (donde el sistema puede).
-    val blurStill = !watched && episode.thumb != null && canBlurImages
+    // Con "Blur Unwatched Episodes" activo, su fotograma se difumina y lleva un ojo tachado.
+    val isUnwatchedStill = !watched && episode.thumb != null
 
     Column(
         modifier = Modifier.width(width).duskTvFocusScale(focused),
@@ -547,13 +543,10 @@ private fun EpisodeCard(episode: PlexItem, imageUrl: String?, artworkWidthPt: Fl
         ) {
             DuskIcon(R.drawable.ic_tv, tv.dp(52), colors.textSecondary)
             if (imageUrl != null) {
-                AsyncImage(
+                SpoilerAsyncImage(
                     model = imageUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(if (blurStill) Modifier.blur(tv.dp(14), BlurredEdgeTreatment.Rectangle) else Modifier),
+                    isUnwatchedEpisodeImage = isUnwatchedStill,
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
             if (progress != null && progress > 0) {

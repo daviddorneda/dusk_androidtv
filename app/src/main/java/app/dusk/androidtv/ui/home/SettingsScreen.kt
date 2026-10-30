@@ -22,12 +22,15 @@ import app.dusk.androidtv.data.plex.PlexHomeUser
 import app.dusk.androidtv.data.plex.ServerEntry
 import app.dusk.androidtv.data.plex.ServerManager
 import app.dusk.androidtv.data.plex.ServerState
+import app.dusk.androidtv.data.prefs.AppearanceMode
 import app.dusk.androidtv.ui.account.PlexHomeUserAvatar
 import app.dusk.androidtv.ui.components.SettingsActionRow
 import app.dusk.androidtv.ui.components.SettingsInfoRow
+import app.dusk.androidtv.ui.components.SettingsMenuRow
 import app.dusk.androidtv.ui.components.SettingsMetrics
 import app.dusk.androidtv.ui.components.SettingsRowDivider
 import app.dusk.androidtv.ui.components.SettingsSection
+import app.dusk.androidtv.ui.components.SettingsToggleRow
 import app.dusk.androidtv.ui.theme.DuskTheme
 
 /**
@@ -54,6 +57,8 @@ fun SettingsScreen(
     val error by servers.error.collectAsStateWithLifecycle()
     val reports by DuskGraph.content.reports.collectAsStateWithLifecycle()
     val homeContent by DuskGraph.content.home.collectAsStateWithLifecycle()
+    val appearance by DuskGraph.preferences.appearanceMode.collectAsStateWithLifecycle()
+    val blursUnwatched by DuskGraph.preferences.blursUnwatchedEpisodes.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -108,6 +113,28 @@ fun SettingsScreen(
             }
 
             SettingsSection(
+                title = "Appearance",
+                footer = "System follows your device appearance. Light and Dark override it for the whole app. " +
+                    "Blur Unwatched Episodes hides the images of episodes you haven’t finished, so they can’t spoil anything.",
+            ) {
+                SettingsMenuRow(
+                    title = "Appearance",
+                    selectedTitle = appearance.displayName,
+                    options = AppearanceMode.entries,
+                    isSelected = { it == appearance },
+                    optionTitle = { it.displayName },
+                    onSelect = DuskGraph.preferences::setAppearanceMode,
+                    focusRequester = if (hasPlexHome && activeUser != null) null else firstFocus,
+                )
+                SettingsRowDivider()
+                SettingsToggleRow(
+                    title = "Blur Unwatched Episodes",
+                    checked = blursUnwatched,
+                    onCheckedChange = DuskGraph.preferences::setBlursUnwatchedEpisodes,
+                )
+            }
+
+            SettingsSection(
                 title = "Servers",
                 footer = homeSummary(homeContent.heroItems.size, homeContent.shelves.size, reports),
             ) {
@@ -127,7 +154,6 @@ fun SettingsScreen(
                     title = "Retry Connection",
                     onClick = { servers.connectAll(accountToken) },
                     detail = if (discovering) "Connecting…" else null,
-                    focusRequester = if (hasPlexHome && activeUser != null) null else firstFocus,
                 )
             }
 

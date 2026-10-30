@@ -27,7 +27,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import app.dusk.androidtv.ui.library.MenuCard
 import app.dusk.androidtv.R
 import app.dusk.androidtv.ui.theme.DuskTheme
 
@@ -181,4 +186,116 @@ fun SettingsRowDivider() {
             .height(tv.dp(1))
             .background(DuskTheme.colors.textPrimary.copy(alpha = 0.08f)),
     )
+}
+
+/**
+ * Fila con interruptor (`TVSettingsToggleRow`): título a la izquierda, interruptor a la derecha y la
+ * misma banda de foco que las demás filas. Pulsar la fila entera lo cambia.
+ */
+@Composable
+fun SettingsToggleRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val tv = DuskTheme.tv
+    val colors = DuskTheme.colors
+    var focused by remember { mutableStateOf(false) }
+    val band by animateColorAsState(
+        targetValue = colors.textPrimary.copy(alpha = if (focused) 0.20f else 0f),
+        animationSpec = tween(180),
+        label = "settingsToggleBand",
+    )
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused }
+            .padding(vertical = tv.dp(4))
+            .clip(RoundedCornerShape(tv.dp(18)))
+            .background(band)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onCheckedChange(!checked) },
+            )
+            .heightIn(min = tv.dp(SettingsMetrics.ROW_MIN_HEIGHT_PT - 8))
+            .padding(horizontal = tv.dp(SettingsMetrics.ROW_BAND_OUTSET_PT)),
+        horizontalArrangement = Arrangement.spacedBy(tv.dp(20)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BasicText(text = title, style = DuskTheme.type.rowTitle, modifier = Modifier.weight(1f))
+        DuskSwitch(checked = checked)
+    }
+}
+
+/**
+ * Fila de menú (`TVSettingsMenuRow`): título y valor elegido; al pulsarla se abre la lista de
+ * opciones. El original empuja una pantalla propia con las opciones; aquí es una lista desplegable.
+ */
+@Composable
+fun <T> SettingsMenuRow(
+    title: String,
+    selectedTitle: String,
+    options: List<T>,
+    isSelected: (T) -> Boolean,
+    optionTitle: (T) -> String,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier,
+    focusRequester: FocusRequester? = null,
+) {
+    val tv = DuskTheme.tv
+    val colors = DuskTheme.colors
+    val type = DuskTheme.type
+    var focused by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
+    var rowHeight by remember { mutableStateOf(0) }
+    val band by animateColorAsState(
+        targetValue = colors.textPrimary.copy(alpha = if (focused) 0.20f else 0f),
+        animationSpec = tween(180),
+        label = "settingsMenuBand",
+    )
+
+    Box(modifier = modifier.fillMaxWidth().onSizeChanged { rowHeight = it.height }) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                .onFocusChanged { focused = it.isFocused }
+                .padding(vertical = tv.dp(4))
+                .clip(RoundedCornerShape(tv.dp(18)))
+                .background(band)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { expanded = true },
+                )
+                .heightIn(min = tv.dp(SettingsMetrics.ROW_MIN_HEIGHT_PT - 8))
+                .padding(horizontal = tv.dp(SettingsMetrics.ROW_BAND_OUTSET_PT)),
+            horizontalArrangement = Arrangement.spacedBy(tv.dp(20)),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BasicText(text = title, style = type.rowTitle, maxLines = 1, modifier = Modifier.weight(1f))
+            BasicText(text = selectedTitle, style = type.rowValue, maxLines = 1)
+        }
+        if (expanded) {
+            Popup(
+                alignment = Alignment.TopEnd,
+                offset = IntOffset(0, rowHeight),
+                onDismissRequest = { expanded = false },
+                properties = PopupProperties(focusable = true),
+            ) {
+                MenuCard(
+                    options = options,
+                    isSelected = isSelected,
+                    optionTitle = optionTitle,
+                    onSelect = {
+                        expanded = false
+                        onSelect(it)
+                    },
+                )
+            }
+        }
+    }
 }

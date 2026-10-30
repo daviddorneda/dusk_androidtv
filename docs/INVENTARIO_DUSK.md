@@ -57,6 +57,7 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 | 7 | 4a (correcciones) | Resplandor blanco de foco dibujado como la sombra difusa de SwiftUI, detalle de película sin desplazamiento automático y con el resplandor del reparto solo en el avatar, Ajustes navegable con el mando desde la barra |
 | 8 | 4b (primera parte) | Pestañas Movies / TV Shows / Videos con rejilla de biblioteca paginada, chips de Género, "Unwatched" y Orden con menús, barra de pestañas que se oculta al bajar |
 | 9 | 4c | Página de serie (sirve para serie, temporada y episodio): banner que sigue al episodio enfocado, pastillas de temporada, fila de episodios con progreso, resumen y reparto del episodio; pulsar series, temporadas y episodios en Home y bibliotecas la abre |
+| 10 | 4 (correcciones) | Foco que regresa al último póster al volver de un detalle (Home y bibliotecas), pastillas de temporada sin recortar, ajuste "Blur Unwatched Episodes" (desactivado por defecto) con sección Appearance en Ajustes |
 
 ### Fase 4 por partes
 
@@ -84,13 +85,17 @@ Nota: en el original, la pestaña Movies / TV Shows abre primero las *recomendac
 - **Datos del medio:** el original toma solo la primera versión del medio (`media.first`) y muestra los campos que Plex da a nivel de medio: resolución, códec de vídeo, códec de audio y canales. Es la pista que Plex considera principal (normalmente la predeterminada); no muestra idioma ni distingue pistas. El selector de pistas con idiomas está en el reproductor (fase 5).
 - **Fondo de página:** color plano `#090A0F` (`duskTVOSPageBackground`, sin degradado). El degradado que se ve a la izquierda en las capturas del repo es idéntico en pantallas distintas, así que es del marco del montaje y no de la app.
 - **Rejilla de biblioteca:** columnas calculadas como `AdaptivePosterGridLayout` (póster preferido de 196 pt, separación 40 pt, margen 48 pt: 7 columnas a 1920 pt). Chips de 18 pt de radio con borde fino. Varias bibliotecas del mismo tipo se recorren una tras otra sin repetir títulos.
+- **Difuminado de episodios sin ver:** es un ajuste ("Blur Unwatched Episodes", Ajustes › Appearance) y viene **desactivado por defecto**. Cuando está activo se difuminan solo las imágenes (miniatura y banner) con un radio del 12 % del lado corto (entre 8 y 64 pt) y un ojo tachado en las miniaturas; **las descripciones no se difuminan**. En el port el desenfoque se hace sobre la imagen y no depende de la versión de Android.
+- **Foco al volver de un detalle:** en tvOS la vista sigue viva bajo el detalle y el sistema restaura el foco; en el port se guarda el último póster enfocado y se recupera (fila y tarjeta).
+- **Foco al entrar en una biblioteca:** el original no fija el foco inicial en los pósters; los filtros son una sección de foco propia. Bajar desde la barra lleva a los filtros, y de ahí a la rejilla. Se replica igual.
+- **Fondo:** el color es exactamente `#090A0F` (medido en las capturas del original). Cualquier diferencia de tono que se vea en la TV depende del modo de imagen del televisor, no de la app.
 - **Series:** tvOS no tiene pantallas separadas de serie, temporada y episodio; las tres rutas abren una sola página (`SeriesDetailView`) que se abre en la temporada pedida (si no, la primera regular con algo sin ver) y en el episodio pedido (si no, el siguiente por ver: primero uno a medias, luego el primero sin ver). El fotograma de un episodio sin ver se desenfoca para no destripar nada; donde el sistema no puede desenfocar (antes de Android 12), el banner usa el fondo de la serie y las miniaturas no se desenfocan.
 - **Ajustes:** estructura del original (título, secciones en tarjetas, "Account" con Sign Out en rojo). "Servers" es un añadido provisional de diagnóstico.
 
 ## Pendientes conocidos de fidelidad
 - Efecto Liquid Glass y paralaje de los pósters: solo aproximados.
 - Tipografía: fuente del sistema en lugar de SF Pro (valorar Inter).
-- Ajustes: faltan las secciones Support, Playback, Appearance, Seerr y About.
+- Ajustes: faltan las secciones Support, Playback, Seerr y About; Appearance solo tiene Appearance y Blur Unwatched Episodes, y el selector de apariencia es una lista desplegable en vez de una pantalla propia.
 - Home: faltan Live TV, Watchlist y estantes personalizados; orden de filas por biblioteca.
 - Bibliotecas: faltan el índice A–Z, la hoja de filtros, las colecciones y las recomendaciones; el orden y "Unwatched" no se recuerdan por biblioteca; el menú de los chips es una lista desplegable propia, no el menú nativo.
 - Detalle de película: faltan tráiler/extras, valoraciones por fuente, descarga de subtítulos, valorar, listas, Watchlist, colecciones, selección de versión y reproducir; al volver no se restaura el póster exacto.

@@ -123,6 +123,8 @@ fun LibraryGridScreen(
     tabBarFocus: FocusRequester,
     onScrolledChange: (Boolean) -> Unit,
     onOpen: (PlexItem) -> Unit,
+    restoreFocus: Boolean,
+    onRestoreHandled: () -> Unit,
 ) {
     val viewModel: LibraryGridViewModel = viewModel(
         key = "library-${kind.name}",
@@ -136,7 +138,13 @@ fun LibraryGridScreen(
     val connections by DuskGraph.content.connections.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
-    val listState = rememberLazyListState()
+    // Al volver desde un detalle se reabre la rejilla en la fila del último póster enfocado y el foco
+    // regresa a él (en tvOS la vista sigue viva bajo el detalle y el sistema restaura el foco).
+    val restoreKey = remember { if (restoreFocus) viewModel.lastFocusedKey else null }
+    val restoreRequester = remember { FocusRequester() }
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = if (restoreKey != null) 2 + viewModel.lastFocusedRow else 0,
+    )
 
     val isVideo = kind == LibraryKind.Video
     val screenWidthPt = LocalConfiguration.current.screenWidthDp / tv.scale
@@ -151,6 +159,16 @@ fun LibraryGridScreen(
     val firstCardFocus = remember { FocusRequester() }
     var focusedRow by remember { mutableIntStateOf(-1) }
     val firstRowItemIndex = 2 // 0: hueco superior, 1: chips
+
+    LaunchedEffect(Unit) {
+        if (restoreKey != null) {
+            for (attempt in 0 until 15) {
+                delay(100)
+                if (restoreRequester.tryFocus()) break
+            }
+        }
+        onRestoreHandled()
+    }
 
     // La barra de pestañas se oculta al bajar por la rejilla.
     val scrolled by remember {
@@ -274,8 +292,16 @@ fun LibraryGridScreen(
                                     width = tv.dp(posterWidthPt),
                                     imageAspectRatio = aspect,
                                     onClick = { onOpen(item) },
-                                    focusRequester = if (rowIndex == 0 && columnIndex == 0) firstCardFocus else null,
-                                    onFocused = { focusedRow = rowIndex },
+                                    focusRequester = when {
+                                        restoreKey != null && item.storageKey == restoreKey -> restoreRequester
+                                        rowIndex == 0 && columnIndex == 0 -> firstCardFocus
+                                        else -> null
+                                    },
+                                    onFocused = {
+                                        focusedRow = rowIndex
+                                        viewModel.lastFocusedKey = item.storageKey
+                                        viewModel.lastFocusedRow = rowIndex
+                                    },
                                     keyModifier = Modifier.onPreviewKeyEvent { event ->
                                         if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                                         when (event.key) {
