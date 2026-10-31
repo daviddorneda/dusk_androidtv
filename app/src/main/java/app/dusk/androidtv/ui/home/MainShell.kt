@@ -107,18 +107,10 @@ fun MainShell(
     }
 
     // Al cerrar un detalle, la pestaña (Home o una biblioteca) recupera el foco en el último póster.
+    // La marca se activa en el mismo instante en que se cierra el detalle (ver su BackHandler): si se
+    // activara en un efecto, la pantalla ya se habría construido sin ella y no restauraría nada.
     val homeFocusMemory = remember { HomeFocusMemory() }
-    var wasInDetail by remember { mutableStateOf(false) }
     var pendingRestore by remember { mutableStateOf(false) }
-    LaunchedEffect(route) {
-        if (route != null) {
-            wasInDetail = true
-        } else if (wasInDetail) {
-            wasInDetail = false
-            pendingRestore = selected == MainTab.Home || selected == MainTab.Movies ||
-                selected == MainTab.TvShows || selected == MainTab.Videos
-        }
-    }
     LaunchedEffect(selected) { pendingRestore = false }
 
     BackHandler(enabled = selected != MainTab.Home || scrolledOffTop) {
@@ -155,6 +147,10 @@ fun MainShell(
 
     BackHandler(enabled = backStack.isNotEmpty()) {
         backStack.removeAt(backStack.lastIndex)
+        if (backStack.isEmpty()) {
+            pendingRestore = selected == MainTab.Home || selected == MainTab.Movies ||
+                selected == MainTab.TvShows || selected == MainTab.Videos
+        }
     }
 
     Box(Modifier.fillMaxSize().background(DuskTheme.colors.background)) {

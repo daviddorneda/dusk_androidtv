@@ -58,6 +58,7 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 | 8 | 4b (primera parte) | Pestañas Movies / TV Shows / Videos con rejilla de biblioteca paginada, chips de Género, "Unwatched" y Orden con menús, barra de pestañas que se oculta al bajar |
 | 9 | 4c | Página de serie (sirve para serie, temporada y episodio): banner que sigue al episodio enfocado, pastillas de temporada, fila de episodios con progreso, resumen y reparto del episodio; pulsar series, temporadas y episodios en Home y bibliotecas la abre |
 | 10 | 4 (correcciones) | Foco que regresa al último póster al volver de un detalle (Home y bibliotecas), pastillas de temporada sin recortar, ajuste "Blur Unwatched Episodes" (desactivado por defecto) con sección Appearance en Ajustes |
+| 11 | 4 (correcciones) | Restaurar de verdad el foco al volver del detalle: la marca de restauración se activaba después de construir la pantalla y no surtía efecto |
 
 ### Fase 4 por partes
 
