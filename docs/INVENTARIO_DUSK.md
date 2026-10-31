@@ -59,6 +59,7 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 | 9 | 4c | Página de serie (sirve para serie, temporada y episodio): banner que sigue al episodio enfocado, pastillas de temporada, fila de episodios con progreso, resumen y reparto del episodio; pulsar series, temporadas y episodios en Home y bibliotecas la abre |
 | 10 | 4 (correcciones) | Foco que regresa al último póster al volver de un detalle (Home y bibliotecas), pastillas de temporada sin recortar, ajuste "Blur Unwatched Episodes" (desactivado por defecto) con sección Appearance en Ajustes |
 | 11 | 4 (correcciones) | Restaurar de verdad el foco al volver del detalle: la marca de restauración se activaba después de construir la pantalla y no surtía efecto |
+| 12 | 4d | Búsqueda: campo con teclado en una fila (`123`, `SPACE`, a–z, borrar), consulta a todos los servidores a la vez con retardo de 300 ms, carruseles por tipo de resultado, vídeos en 16:9 y foco que regresa al volver de un detalle |
 
 ### Fase 4 por partes
 
@@ -67,7 +68,7 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 | 4a | Navegación y detalle de película | Tanda 6 |
 | 4b | Pestañas Movies / TV Shows: biblioteca en rejilla (ordenar, filtrar, índice por letras) | Tanda 8 (rejilla, género, no vistos, orden); faltan índice A–Z, hoja de filtros y colecciones |
 | 4c | Detalle de serie, temporada y episodio | Tanda 9 (una sola página, como tvOS); faltan tráiler, extras, colecciones, valorar y listas |
-| 4d | Búsqueda | Pendiente |
+| 4d | Búsqueda | Tanda 12; faltan Seerr (pedidos), menú de listas por póster y ficha de personas |
 | 4e | Recomendaciones por biblioteca, colecciones, ficha de persona, extras y tráiler | Pendiente |
 
 Nota: en el original, la pestaña Movies / TV Shows abre primero las *recomendaciones* de la biblioteca (motor de unas 2.000 líneas) y desde ahí se llega a la rejilla. En el port se empezará por la rejilla (4b) y las recomendaciones llegarán en 4e.
@@ -91,6 +92,7 @@ Nota: en el original, la pestaña Movies / TV Shows abre primero las *recomendac
 - **Foco al entrar en una biblioteca:** el original no fija el foco inicial en los pósters; los filtros son una sección de foco propia. Bajar desde la barra lleva a los filtros, y de ahí a la rejilla. Se replica igual.
 - **Fondo:** el color es exactamente `#090A0F` (medido en las capturas del original). Cualquier diferencia de tono que se vea en la TV depende del modo de imagen del televisor, no de la app.
 - **Series:** tvOS no tiene pantallas separadas de serie, temporada y episodio; las tres rutas abren una sola página (`SeriesDetailView`) que se abre en la temporada pedida (si no, la primera regular con algo sin ver) y en el episodio pedido (si no, el siguiente por ver: primero uno a medias, luego el primero sin ver). El fotograma de un episodio sin ver se desenfoca para no destripar nada; donde el sistema no puede desenfocar (antes de Android 12), el banner usa el fondo de la serie y las miniaturas no se desenfocan.
+- **Búsqueda:** el original usa el buscador del sistema de tvOS (`.searchable`), con el teclado en una fila. En Android TV el teclado es propio con la misma disposición: `123`/`ABC`, `SPACE`, letras a–z y borrar. Cada servidor conectado se consulta a la vez (`/hubs/search`, 10 por tipo); los resultados se republican según contesta cada uno, los tipos iguales se unen intercalando servidores y un error solo se muestra si fallan todos. Los vídeos sueltos (clips) van en un grupo "Videos" con miniaturas 16:9.
 - **Ajustes:** estructura del original (título, secciones en tarjetas, "Account" con Sign Out en rojo). "Servers" es un añadido provisional de diagnóstico.
 
 ## Pendientes conocidos de fidelidad
@@ -99,6 +101,7 @@ Nota: en el original, la pestaña Movies / TV Shows abre primero las *recomendac
 - Ajustes: faltan las secciones Support, Playback, Seerr y About; Appearance solo tiene Appearance y Blur Unwatched Episodes, y el selector de apariencia es una lista desplegable en vez de una pantalla propia.
 - Home: faltan Live TV, Watchlist y estantes personalizados; orden de filas por biblioteca.
 - Bibliotecas: faltan el índice A–Z, la hoja de filtros, las colecciones y las recomendaciones; el orden y "Unwatched" no se recuerdan por biblioteca; el menú de los chips es una lista desplegable propia, no el menú nativo.
+- Búsqueda: faltan Seerr (pedir lo que no está en Plex), el menú de listas de cada póster y la ficha de personas; el teclado es propio, no el del sistema.
 - Detalle de película: faltan tráiler/extras, valoraciones por fuente, descarga de subtítulos, valorar, listas, Watchlist, colecciones, selección de versión y reproducir; al volver no se restaura el póster exacto.
 
 ## Archivos de referencia en el original

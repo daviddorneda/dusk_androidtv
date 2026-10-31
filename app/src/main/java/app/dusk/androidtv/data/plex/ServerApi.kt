@@ -130,4 +130,23 @@ class ServerApi(private val plex: PlexClient) {
             ?.mapNotNull { (it as? JsonObject)?.let { obj -> PlexItem.fromJson(obj, connection.serverId) } }
             ?: emptyList()
     }
+
+    /** `GET /hubs/search`: grupos de resultados por tipo (máximo 10 elementos cada uno). */
+    suspend fun search(connection: ServerConnection, query: String): List<SearchGroup> {
+        val container = container(
+            connection,
+            "/hubs/search",
+            listOf(
+                "query" to query,
+                "limit" to "10",
+                "includeCollections" to "0",
+                "includeGuids" to "1",
+            ),
+        )
+        return (container["Hub"] as? JsonArray)
+            ?.mapNotNull { (it as? JsonObject)?.let { obj -> PlexHub.fromJson(obj, connection.serverId) } }
+            ?.filter { it.items.isNotEmpty() }
+            ?.flatMap { SearchGroup.fromHub(it) }
+            ?: emptyList()
+    }
 }

@@ -33,6 +33,7 @@ import app.dusk.androidtv.ui.components.MainTab
 import app.dusk.androidtv.ui.detail.MovieDetailScreen
 import app.dusk.androidtv.ui.detail.SeriesDetailScreen
 import app.dusk.androidtv.ui.library.LibraryGridScreen
+import app.dusk.androidtv.ui.search.SearchScreen
 import app.dusk.androidtv.ui.nav.Route
 import app.dusk.androidtv.ui.theme.DuskTheme
 import kotlinx.coroutines.delay
@@ -82,6 +83,8 @@ fun MainShell(
     val settingsFocus = remember { FocusRequester() }
     val libraryFocus = remember { FocusRequester() }
     var libraryScrolled by remember { mutableStateOf(false) }
+    val searchFocus = remember { FocusRequester() }
+    var searchScrolled by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val scrolledOffTop by remember {
         derivedStateOf {
@@ -92,6 +95,7 @@ fun MainShell(
     val barVisible = when (selected) {
         MainTab.Home -> !scrolledOffTop
         MainTab.Movies, MainTab.TvShows, MainTab.Videos -> !libraryScrolled
+        MainTab.Search -> !searchScrolled
         else -> true
     }
 
@@ -149,7 +153,7 @@ fun MainShell(
         backStack.removeAt(backStack.lastIndex)
         if (backStack.isEmpty()) {
             pendingRestore = selected == MainTab.Home || selected == MainTab.Movies ||
-                selected == MainTab.TvShows || selected == MainTab.Videos
+                selected == MainTab.TvShows || selected == MainTab.Videos || selected == MainTab.Search
         }
     }
 
@@ -185,7 +189,14 @@ fun MainShell(
                     restoreFocus = pendingRestore,
                     onRestoreHandled = { pendingRestore = false },
                 )
-                MainTab.Search -> ComingSoonScreen(title = "Search", note = "Search arrives in a later update.")
+                MainTab.Search -> SearchScreen(
+                    firstKeyFocus = searchFocus,
+                    tabBarFocus = tabBarFocus,
+                    onScrolledChange = { searchScrolled = it },
+                    onOpen = openItem,
+                    restoreFocus = pendingRestore,
+                    onRestoreHandled = { pendingRestore = false },
+                )
                 MainTab.Settings -> SettingsScreen(
                     activeUser = activeUser,
                     hasPlexHome = hasPlexHome,
@@ -213,6 +224,9 @@ fun MainShell(
                     }
                     MainTab.Movies, MainTab.TvShows, MainTab.Videos -> {
                         { runCatching { libraryFocus.requestFocus() }.isSuccess }
+                    }
+                    MainTab.Search -> {
+                        { runCatching { searchFocus.requestFocus() }.isSuccess }
                     }
                     else -> null
                 },
