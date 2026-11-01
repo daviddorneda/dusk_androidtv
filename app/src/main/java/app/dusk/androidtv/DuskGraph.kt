@@ -11,12 +11,17 @@ import app.dusk.androidtv.data.plex.SessionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 /** Servicios compartidos de larga vida (equivalente a lo que `DuskApp` inyecta en el entorno). */
 object DuskGraph {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     lateinit var preferences: UserPreferences
+        private set
+    lateinit var appContext: Context
         private set
     lateinit var session: SessionStore
         private set
@@ -34,6 +39,7 @@ object DuskGraph {
     fun init(context: Context) {
         if (::session.isInitialized) return
         val app = context.applicationContext
+        appContext = app
         preferences = UserPreferences(app)
         session = SessionStore(app)
         val version = runCatching {
@@ -44,6 +50,15 @@ object DuskGraph {
         servers = ServerManager(plex, session, scope)
         serverApi = ServerApi(plex)
         content = ContentRepository(serverApi, servers, scope)
+    }
+
+    private val _playbackFinished = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** Se emite al cerrar el reproductor: Home y los detalles refrescan su estado de visto y progreso. */
+    val playbackFinished: SharedFlow<Unit> = _playbackFinished.asSharedFlow()
+
+    fun notifyPlaybackFinished() {
+        _playbackFinished.tryEmit(Unit)
     }
 
     /** Cierra sesión: desconecta servidores, olvida el perfil y borra el token. */

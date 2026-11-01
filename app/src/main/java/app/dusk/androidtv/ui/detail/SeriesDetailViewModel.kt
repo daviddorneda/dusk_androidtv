@@ -66,6 +66,8 @@ class SeriesDetailViewModel(private val route: Route.SeriesDetail) : ViewModel()
 
     init {
         load()
+        // Al cerrar el reproductor se recargan los episodios y el siguiente por ver pasa a ser el ancla.
+        viewModelScope.launch { DuskGraph.playbackFinished.collect { refreshAfterPlayback() } }
     }
 
     fun load() {
@@ -180,6 +182,19 @@ class SeriesDetailViewModel(private val route: Route.SeriesDetail) : ViewModel()
         anchor?.let { if (!episodeDetailsCache.containsKey(it.ratingKey)) loadEpisodeDetails(connection, it.ratingKey) }
     }
 
+    private suspend fun refreshAfterPlayback() {
+        val connection = connection ?: return
+        val seasonKey = _state.value.selectedSeasonKey ?: return
+        episodeDetailsCache.clear()
+        try {
+            refreshSeason(connection, seasonKey)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Sin conexión: se conserva lo que ya había.
+        }
+    }
+
     /** Recarga la temporada y la lista de temporadas sin mover el foco del banner. */
     private suspend fun refreshSeason(connection: ServerConnection, seasonKey: String) {
         val (episodes, seasons) = coroutineScope {
@@ -195,7 +210,13 @@ class SeriesDetailViewModel(private val route: Route.SeriesDetail) : ViewModel()
             }
             episodesDeferred.await() to seasonsDeferred.await()
         }
-        _state.update { it.copy(episodes = episodes, seasons = seasons) }
+        _state.update {
+            it.copy(
+                episodes = episodes,
+                seasons = seasons,
+                anchorEpisodeKey = nextEpisodeToPlay(episodes)?.ratingKey ?: it.anchorEpisodeKey,
+            )
+        }
     }
 
     private suspend fun loadEpisodeDetails(connection: ServerConnection, episodeKey: String) {

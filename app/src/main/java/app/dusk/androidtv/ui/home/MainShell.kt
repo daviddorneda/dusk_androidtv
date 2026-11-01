@@ -35,6 +35,7 @@ import app.dusk.androidtv.ui.detail.SeriesDetailScreen
 import app.dusk.androidtv.ui.library.LibraryGridScreen
 import app.dusk.androidtv.ui.search.SearchScreen
 import app.dusk.androidtv.ui.nav.Route
+import app.dusk.androidtv.ui.player.PlayerScreen
 import app.dusk.androidtv.ui.theme.DuskTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -149,7 +150,15 @@ fun MainShell(
         }
     }
 
-    BackHandler(enabled = backStack.isNotEmpty()) {
+    // Abre el reproductor encima de lo que haya (detalle, biblioteca...). `null` = donde lo dejó el servidor.
+    val playRating: (String, String, Long?) -> Unit = { serverId, ratingKey, resumeOffsetMs ->
+        backStack.add(Route.Player(serverId, ratingKey, resumeOffsetMs))
+    }
+    val playItem: (PlexItem) -> Unit = { item ->
+        item.serverId?.let { playRating(it, item.ratingKey, null) }
+    }
+
+    BackHandler(enabled = backStack.isNotEmpty() && backStack.lastOrNull() !is Route.Player) {
         backStack.removeAt(backStack.lastIndex)
         if (backStack.isEmpty()) {
             pendingRestore = selected == MainTab.Home || selected == MainTab.Movies ||
@@ -160,8 +169,18 @@ fun MainShell(
     Box(Modifier.fillMaxSize().background(DuskTheme.colors.background)) {
         if (route != null) {
             when (route) {
-                is Route.MovieDetail -> MovieDetailScreen(route)
-                is Route.SeriesDetail -> SeriesDetailScreen(route)
+                is Route.MovieDetail -> MovieDetailScreen(
+                    route = route,
+                    onPlay = { resume -> playRating(route.serverId, route.ratingKey, resume) },
+                )
+                is Route.SeriesDetail -> SeriesDetailScreen(
+                    route = route,
+                    onPlay = { episodeKey, resume -> playRating(route.serverId, episodeKey, resume) },
+                )
+                is Route.Player -> PlayerScreen(
+                    route = route,
+                    onExit = { if (backStack.lastOrNull() == route) backStack.removeAt(backStack.lastIndex) },
+                )
             }
         } else Crossfade(targetState = selected, animationSpec = tween(260), label = "tabContent") { tab ->
             when (tab) {
@@ -173,7 +192,7 @@ fun MainShell(
                     memory = homeFocusMemory,
                     restoreFocus = pendingRestore,
                     onRestoreHandled = { pendingRestore = false },
-                    onPlay = { /* Reproductor: fase 5 */ },
+                    onPlay = playItem,
                     onOpen = openItem,
                 )
                 MainTab.Movies, MainTab.TvShows, MainTab.Videos -> LibraryGridScreen(

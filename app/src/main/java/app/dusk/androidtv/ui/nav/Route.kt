@@ -18,4 +18,14 @@ sealed interface Route {
         val seasonRatingKey: String? = null,
         val episodeRatingKey: String? = null,
     ) : Route
+
+    /**
+     * Reproductor a pantalla completa. `resumeOffsetMs` nulo = lo que diga el servidor; `0` = desde el
+     * principio (`playFromStart`).
+     */
+    data class Player(
+        val serverId: String,
+        val ratingKey: String,
+        val resumeOffsetMs: Long? = null,
+    ) : Route
 }

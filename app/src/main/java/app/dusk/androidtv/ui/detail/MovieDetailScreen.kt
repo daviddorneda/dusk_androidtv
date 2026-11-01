@@ -85,7 +85,7 @@ private const val DETAIL_HORIZONTAL_PADDING_PT = 48
  * colecciones, versiones, y reproducir (fase 5).
  */
 @Composable
-fun MovieDetailScreen(route: Route.MovieDetail) {
+fun MovieDetailScreen(route: Route.MovieDetail, onPlay: (resumeOffsetMs: Long?) -> Unit) {
     val viewModel: MovieDetailViewModel = viewModel(
         key = "movie-${route.serverId}-${route.ratingKey}",
         factory = MovieDetailViewModel.factory(route),
@@ -103,6 +103,7 @@ fun MovieDetailScreen(route: Route.MovieDetail) {
                     PlexImages.url(viewModel.connection, path, widthPt, heightPt)
                 },
                 onToggleWatched = viewModel::toggleWatched,
+                onPlay = { onPlay(null) },
             )
             state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 DuskSpinner(size = tv.dp(56), color = colors.textSecondary)
@@ -135,6 +136,7 @@ private fun MovieDetailContent(
     details: MediaDetails,
     imageUrl: (String?, Int, Int) -> String?,
     onToggleWatched: () -> Unit,
+    onPlay: () -> Unit,
 ) {
     val tv = DuskTheme.tv
     val type = DuskTheme.type
@@ -231,7 +233,7 @@ private fun MovieDetailContent(
                     DuskGlassButton(
                         text = details.formattedResume?.let { "Resume from $it" } ?: "Play",
                         iconRes = R.drawable.ic_play,
-                        onClick = { /* Reproductor: fase 5 */ },
+                        onClick = onPlay,
                         focusRequester = playFocus,
                         onFocusChange = { if (it) scrollToTop() },
                         modifier = Modifier.widthIn(min = tv.dp(220)),

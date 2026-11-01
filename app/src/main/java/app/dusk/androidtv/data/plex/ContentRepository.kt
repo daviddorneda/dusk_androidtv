@@ -1,5 +1,6 @@
 package app.dusk.androidtv.data.plex
 
+import app.dusk.androidtv.DuskGraph
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
@@ -41,6 +42,8 @@ class ContentRepository(
 
     private data class Snapshot(val connections: List<ServerConnection>, val discovering: Boolean)
 
+    private var lastSnapshot: Snapshot? = null
+
     private val job = scope.launch {
         combine(servers.entries, servers.isDiscovering) { entries, discovering ->
             Snapshot(
@@ -53,9 +56,15 @@ class ContentRepository(
             .collectLatest { reload(it) }
     }
 
+    init {
+        // Al cerrar el reproductor cambian "continuar viendo" y los estados de visto.
+        scope.launch { DuskGraph.playbackFinished.collect { lastSnapshot?.let { reload(it) } } }
+    }
+
     fun connectionFor(serverId: String?): ServerConnection? = serverId?.let { _connections.value[it] }
 
     private suspend fun reload(snapshot: Snapshot) {
+        lastSnapshot = snapshot
         val connections = snapshot.connections
         _connections.value = connections.associateBy { it.serverId }
 

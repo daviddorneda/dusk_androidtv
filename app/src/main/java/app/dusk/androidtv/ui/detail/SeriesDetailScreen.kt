@@ -102,7 +102,7 @@ private const val EPISODE_CAST_MIN_HEIGHT_PT = 288
  * TODO: tráiler y extras, valorar, listas, Watchlist, colecciones, Seerr y versiones.
  */
 @Composable
-fun SeriesDetailScreen(route: Route.SeriesDetail) {
+fun SeriesDetailScreen(route: Route.SeriesDetail, onPlay: (episodeRatingKey: String, resumeOffsetMs: Long?) -> Unit) {
     val viewModel: SeriesDetailViewModel = viewModel(
         key = "series-${route.serverId}-${route.showRatingKey}-${route.seasonRatingKey}-${route.episodeRatingKey}",
         factory = SeriesDetailViewModel.factory(route),
@@ -117,6 +117,7 @@ fun SeriesDetailScreen(route: Route.SeriesDetail) {
                 state = state,
                 viewModel = viewModel,
                 imageUrl = { path, widthPx, heightPx -> PlexImages.url(viewModel.connection, path, widthPx, heightPx) },
+                onPlay = onPlay,
             )
             state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 DuskSpinner(size = tv.dp(56), color = colors.textSecondary)
@@ -132,6 +133,7 @@ private fun SeriesContent(
     state: SeriesDetailState,
     viewModel: SeriesDetailViewModel,
     imageUrl: (String?, Int, Int) -> String?,
+    onPlay: (episodeRatingKey: String, resumeOffsetMs: Long?) -> Unit,
 ) {
     val tv = DuskTheme.tv
     val type = DuskTheme.type
@@ -272,7 +274,7 @@ private fun SeriesContent(
                         DuskGlassButton(
                             text = if (focused?.isPartiallyWatchedEpisode == true) "Resume" else "Play",
                             iconRes = R.drawable.ic_play,
-                            onClick = { /* Reproductor: fase 5 */ },
+                            onClick = { focused?.let { onPlay(it.ratingKey, null) } },
                             focusRequester = playFocus,
                             onFocusChange = { if (it) scrollToTop() },
                             modifier = Modifier.widthIn(min = tv.dp(220)),
@@ -342,6 +344,7 @@ private fun SeriesContent(
                                     ceil(artworkWidthPt * 9f / 16f * tv.scale * density).toInt(),
                                 ),
                                 artworkWidthPt = artworkWidthPt,
+                                onClick = { onPlay(episode.ratingKey, null) },
                                 onFocused = {
                                     scrollToTop()
                                     viewModel.onEpisodeFocused(episode.ratingKey)
@@ -508,7 +511,7 @@ private fun SeasonPill(season: PlexItem, isSelected: Boolean, onClick: () -> Uni
  * resplandor blanco rodea solo el fotograma.
  */
 @Composable
-private fun EpisodeCard(episode: PlexItem, imageUrl: String?, artworkWidthPt: Float, onFocused: () -> Unit) {
+private fun EpisodeCard(episode: PlexItem, imageUrl: String?, artworkWidthPt: Float, onClick: () -> Unit, onFocused: () -> Unit) {
     val tv = DuskTheme.tv
     val colors = DuskTheme.colors
     val type = DuskTheme.type
@@ -537,7 +540,7 @@ private fun EpisodeCard(episode: PlexItem, imageUrl: String?, artworkWidthPt: Fl
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = { /* Reproducir: fase 5 */ },
+                    onClick = onClick,
                 ),
             contentAlignment = Alignment.Center,
         ) {

@@ -13,8 +13,13 @@ android {
         applicationId = "app.dusk.androidtv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 13
-        versionName = "0.8.0"
+        versionCode = 14
+        versionName = "0.9.0"
+
+        // libVLC trae bibliotecas nativas para cada arquitectura; solo se incluyen las de los televisores.
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -48,4 +53,5 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("org.videolan.android:libvlc-all:3.6.0")
 }

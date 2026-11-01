@@ -31,6 +31,8 @@ class MovieDetailViewModel(private val route: Route.MovieDetail) : ViewModel() {
 
     init {
         load()
+        // Al cerrar el reproductor cambian el progreso y el estado de visto.
+        viewModelScope.launch { DuskGraph.playbackFinished.collect { load() } }
     }
 
     fun load() {

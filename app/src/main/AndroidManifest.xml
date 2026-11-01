@@ -15,6 +15,7 @@
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation|uiMode|screenSize|smallestScreenSize|screenLayout|density|orientation|locale|layoutDirection|colorMode"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

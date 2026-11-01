@@ -149,4 +149,54 @@ class ServerApi(private val plex: PlexClient) {
             ?.flatMap { SearchGroup.fromHub(it) }
             ?: emptyList()
     }
+
+    /** `GET /library/metadata/{id}?checkFiles=1`: el elemento y su primera parte disponible. */
+    suspend fun playbackItem(connection: ServerConnection, ratingKey: String): PlaybackItem {
+        val container = container(connection, "/library/metadata/$ratingKey", listOf("checkFiles" to "1"))
+        val metadata = (container["Metadata"] as? JsonArray)?.firstOrNull() as? JsonObject
+            ?: throw PlexException("This item is no longer available.")
+        return PlaybackItem.fromJson(metadata, connection.serverId)
+            ?: throw PlexException("No playable file was found on ${connection.name}.")
+    }
+
+    /** Reproducción directa (`PlexService.directPlayURL`): `{baseURL}{part.key}` con el token del servidor. */
+    fun directPlayUrl(connection: ServerConnection, partKey: String): String {
+        val base = connection.baseUrl.trimEnd('/')
+        val path = if (partKey.startsWith("/")) partKey else "/$partKey"
+        val separator = if (path.contains("?")) "&" else "?"
+        return "$base$path${separator}X-Plex-Token=${connection.token}"
+    }
+
+    /**
+     * `GET /:/timeline`: avisa al servidor del estado (`playing`, `paused`, `buffering`, `stopped`) y la
+     * posición. Lleva el identificador de sesión para que el servidor correlacione las peticiones.
+     */
+    suspend fun timeline(
+        connection: ServerConnection,
+        ratingKey: String,
+        state: String,
+        timeMs: Long,
+        durationMs: Long,
+        sessionId: String,
+    ) = withContext(Dispatchers.IO) {
+        val url = (connection.baseUrl.trimEnd('/') + "/:/timeline").toHttpUrl().newBuilder()
+            .addQueryParameter("ratingKey", ratingKey)
+            .addQueryParameter("key", "/library/metadata/$ratingKey")
+            .addQueryParameter("identifier", "com.plexapp.plugins.library")
+            .addQueryParameter("state", state)
+            .addQueryParameter("time", timeMs.toString())
+            .addQueryParameter("duration", durationMs.toString())
+            .build()
+        val headers = plex.headers(connection.token).newBuilder()
+            .add("X-Plex-Session-Identifier", sessionId)
+            .build()
+        val request = Request.Builder().url(url).headers(headers).get().build()
+        try {
+            plex.httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw PlexHttpException(response.code)
+            }
+        } catch (e: IOException) {
+            throw PlexException(e.message ?: "Could not reach ${connection.name}.")
+        }
+    }
 }
