@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.videolan.libvlc.LibVLC
+import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
@@ -19,12 +20,19 @@ import org.videolan.libvlc.util.VLCVideoLayout
 class VlcEngine(context: Context) {
     enum class Phase { Idle, Opening, Playing, Paused, Ended, Error }
 
+    /** Pista del motor: `id` es el que se pasa a `selectAudio` / `selectSubtitle` (-1 = desactivada). */
+    data class Track(val id: Int, val name: String)
+
     data class Snapshot(
         val phase: Phase = Phase.Idle,
         val positionMs: Long = 0,
         val durationMs: Long = 0,
         val isBuffering: Boolean = false,
         val error: String? = null,
+        val audioTracks: List<Track> = emptyList(),
+        val subtitleTracks: List<Track> = emptyList(),
+        val selectedAudioId: Int = -1,
+        val selectedSubtitleId: Int = -1,
     ) {
         val isPlaying: Boolean get() = phase == Phase.Playing
     }
@@ -45,11 +53,46 @@ class VlcEngine(context: Context) {
                 MediaPlayer.Event.TimeChanged -> _snapshot.update { it.copy(positionMs = event.timeChanged) }
                 MediaPlayer.Event.LengthChanged -> _snapshot.update { it.copy(durationMs = event.lengthChanged) }
                 MediaPlayer.Event.EndReached -> _snapshot.update { it.copy(phase = Phase.Ended) }
+                MediaPlayer.Event.ESAdded, MediaPlayer.Event.ESDeleted, MediaPlayer.Event.ESSelected -> refreshTracks()
                 MediaPlayer.Event.EncounteredError -> _snapshot.update {
                     it.copy(phase = Phase.Error, isBuffering = false, error = "The player could not open this file.")
                 }
             }
         }
+    }
+
+    /** Vuelve a leer las pistas del motor (llegan cuando el fichero ya se está leyendo). */
+    private fun refreshTracks() {
+        if (released) return
+        val audio = player.audioTracks?.filter { it.id >= 0 }?.map { Track(it.id, it.name) } ?: emptyList()
+        val subtitles = player.spuTracks?.filter { it.id >= 0 }?.map { Track(it.id, it.name) } ?: emptyList()
+        _snapshot.update {
+            it.copy(
+                audioTracks = audio,
+                subtitleTracks = subtitles,
+                selectedAudioId = player.audioTrack,
+                selectedSubtitleId = player.spuTrack,
+            )
+        }
+    }
+
+    fun selectAudio(id: Int) {
+        if (released) return
+        player.audioTrack = id
+        refreshTracks()
+    }
+
+    /** `-1` desactiva los subtítulos. */
+    fun selectSubtitle(id: Int) {
+        if (released) return
+        player.spuTrack = id
+        refreshTracks()
+    }
+
+    /** Añade un subtítulo externo (fichero aparte) y, si se pide, lo selecciona. */
+    fun addExternalSubtitle(url: String, select: Boolean) {
+        if (released) return
+        player.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(url), select)
     }
 
     fun attach(layout: VLCVideoLayout) {

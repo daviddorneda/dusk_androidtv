@@ -61,13 +61,14 @@ Una **fase** es un bloque de funcionalidad del port; una **tanda** es cada entre
 | 11 | 4 (correcciones) | Restaurar de verdad el foco al volver del detalle: la marca de restauración se activaba después de construir la pantalla y no surtía efecto |
 | 12 | 4d | Búsqueda: campo con teclado en una fila (`123`, `SPACE`, a–z, borrar), consulta a todos los servidores a la vez con retardo de 300 ms, carruseles por tipo de resultado, vídeos en 16:9 y foco que regresa al volver de un detalle |
 | 13 | 5a | Reproductor básico con libVLC: pantalla de carga, reproducción directa, reanudar, barra de reproducción, saltos acumulados con el mando, avisos de progreso a Plex y marcado como visto; los botones Play de detalle, episodios y Home lo abren |
+| 14 | 5b | Barra de reproducción con las medidas exactas del HUD de tvOS, fila de acciones (Subtitles, Audio, Info) y panel con las pestañas Info, Audio y Subtitles: elegir pista de audio y subtítulos (incluidos los externos) con los nombres de Plex |
 
 ### Fase 5 por partes
 
 | Parte | Contenido | Estado |
 |---|---|---|
 | 5a | Reproducción directa con libVLC, barra de reproducción, saltos, timeline y marcado como visto | Tanda 13 |
-| 5b | Fila de acciones y panel con Info, Audio y Subtítulos (elegir pista) | Pendiente |
+| 5b | Fila de acciones y panel con Info, Audio y Subtítulos (elegir pista) | Tanda 14 |
 | 5c | Escalera de entrega (transcodificación de respaldo), elección de versión | Pendiente |
 | 5d | Saltar intro y créditos, Up Next y "¿Sigues viendo?" | Pendiente |
 | 5e | Velocidad, mejoras de pantalla (HDR / Dolby Vision con un segundo motor) | Pendiente |
@@ -105,6 +106,8 @@ Nota: en el original, la pestaña Movies / TV Shows abre primero las *recomendac
 - **Series:** tvOS no tiene pantallas separadas de serie, temporada y episodio; las tres rutas abren una sola página (`SeriesDetailView`) que se abre en la temporada pedida (si no, la primera regular con algo sin ver) y en el episodio pedido (si no, el siguiente por ver: primero uno a medias, luego el primero sin ver). El fotograma de un episodio sin ver se desenfoca para no destripar nada; donde el sistema no puede desenfocar (antes de Android 12), el banner usa el fondo de la serie y las miniaturas no se desenfocan.
 - **Búsqueda:** el original usa el buscador del sistema de tvOS (`.searchable`), con el teclado en una fila. En Android TV el teclado es propio con la misma disposición: `123`/`ABC`, `SPACE`, letras a–z y borrar. Cada servidor conectado se consulta a la vez (`/hubs/search`, 10 por tipo); los resultados se republican según contesta cada uno, los tipos iguales se unen intercalando servidores y un error solo se muestra si fallan todos. Los vídeos sueltos (clips) van en un grupo "Videos" con miniaturas 16:9.
 - **Reproductor (5a):** el motor es libVLC, el mismo del original (VLCKit), así que los mismos códecs y contenedores. Plex se pide con `checkFiles=1` para elegir la primera versión con una parte disponible, y se reproduce el fichero directamente. Se avisa del progreso a `/:/timeline` cada 10 s y al pausar o reanudar, con un identificador de sesión; al cerrar se envía `stopped` y, si se pasó del 90 %, se marca como visto una sola vez. Los botones Play cargan primero una pantalla con póster, título y rueda de carga.
+- **HUD del reproductor (medidas de `PlayerTVHUDLayout`):** márgenes de 60 pt a los lados y 48 pt abajo, barra de 8 pt con la cabeza de 20 pt (28 pt al saltar), tiempos debajo de la barra (transcurrido a la izquierda y restante a la derecha), fila de acciones de 62 pt con 18 pt de separación, y la barra se oculta sola a los 4,5 s. Los saltos se aplican tras 260 ms y, al mantener pulsado, esperan 550 ms y aceleran cada 160 ms (multiplicadores 1, 1, 1, 3, 3, 6, 6, 12).
+- **Panel de pistas:** pestañas Info, Audio y Subtitles; al mover el foco entre pestañas cambia el contenido. Los nombres vienen de Plex (`displayTitle` sin el bitrate tras " @ ", y el detalle con el idioma; en subtítulos, el idioma y "External"). Las pistas de Plex se emparejan con las del motor por orden, y un subtítulo externo se añade al motor la primera vez que se elige. Al empezar se aplican las pistas que Plex marca como elegidas.
 - **Mando en el reproductor:** un único propietario gestiona todas las teclas y nada del HUD es enfocable. Con la barra oculta, Aceptar o Arriba/Abajo la muestran; Izquierda/Derecha acumulan saltos de 10 s (con aceleración al mantener) y se aplica uno solo tras 0,7 s sin pulsar; Reproducir/Pausar alterna; Atrás cancela un salto pendiente, luego oculta la barra y por último sale. La barra se oculta sola a los 5 s mientras se reproduce.
 - **Ajustes:** estructura del original (título, secciones en tarjetas, "Account" con Sign Out en rojo). "Servers" es un añadido provisional de diagnóstico.
 
@@ -114,7 +117,7 @@ Nota: en el original, la pestaña Movies / TV Shows abre primero las *recomendac
 - Ajustes: faltan las secciones Support, Playback, Seerr y About; Appearance solo tiene Appearance y Blur Unwatched Episodes, y el selector de apariencia es una lista desplegable en vez de una pantalla propia.
 - Home: faltan Live TV, Watchlist y estantes personalizados; orden de filas por biblioteca.
 - Bibliotecas: faltan el índice A–Z, la hoja de filtros, las colecciones y las recomendaciones; el orden y "Unwatched" no se recuerdan por biblioteca; el menú de los chips es una lista desplegable propia, no el menú nativo.
-- Reproductor: solo reproducción directa (si el fichero no se puede abrir, sale "Couldn’t Play"); faltan audio y subtítulos, transcodificación de respaldo, versiones, saltar intro, Up Next, velocidad y HDR. Reproducir un elemento ya visto empieza donde lo diga el servidor.
+- Reproductor: la política de pistas por defecto del original (idiomas preferidos, modo de subtítulos, preferencias por serie) no está; se respetan las pistas que Plex marca como elegidas. Solo reproducción directa (si el fichero no se puede abrir, sale "Couldn’t Play"); faltan audio y subtítulos, transcodificación de respaldo, versiones, saltar intro, Up Next, velocidad y HDR. Reproducir un elemento ya visto empieza donde lo diga el servidor.
 - Búsqueda: faltan Seerr (pedir lo que no está en Plex), el menú de listas de cada póster y la ficha de personas; el teclado es propio, no el del sistema.
 - Detalle de película: faltan tráiler/extras, valoraciones por fuente, descarga de subtítulos, valorar, listas, Watchlist, colecciones, selección de versión y reproducir; al volver no se restaura el póster exacto.
 

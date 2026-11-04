@@ -13,8 +13,8 @@ android {
         applicationId = "app.dusk.androidtv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "0.9.0"
+        versionCode = 15
+        versionName = "0.10.0"
 
         // libVLC trae bibliotecas nativas para cada arquitectura; solo se incluyen las de los televisores.
         ndk {
